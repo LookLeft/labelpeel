@@ -134,7 +134,7 @@ function LabelPanel({ doc }: { doc: LabelDoc }) {
         </Field>
         <Field label="Length">
           <div className="row">
-            <Seg value={doc.lengthMode} onChange={(v) => set({ lengthMode: v, length: v === 'fixed' ? Math.round(computeLayout(doc, previewContext(doc)).length) : doc.length })} options={[{ value: 'auto', label: 'Auto' }, { value: 'fixed', label: 'Fixed' }]} />
+            <Seg value={doc.lengthMode} onChange={(v) => set({ lengthMode: v, length: v === 'fixed' ? Math.round(computeLayout(doc, previewContext(doc, useEditor.getState().previewIndex, useEditor.getState().settings.dateFormat)).length) : doc.length })} options={[{ value: 'auto', label: 'Auto' }, { value: 'fixed', label: 'Fixed' }]} />
             {doc.lengthMode === 'fixed' && <NumberInput value={doc.length} onChange={(v) => set({ length: v }, 'length')} unit="mm" min={4} max={1000} step={1} />}
           </div>
         </Field>
@@ -607,7 +607,7 @@ function GeometrySection({ el, up }: { el: LabelElement; up: Up<LabelElement> })
 function alignTo(kind: 'left' | 'hcenter' | 'right' | 'top' | 'vmiddle' | 'bottom', ids: string[]) {
   const s = useEditor.getState();
   const doc = s.doc;
-  const pctx = previewContext(doc, s.previewIndex);
+  const pctx = previewContext(doc, s.previewIndex, s.settings.dateFormat);
   const layout = computeLayout(doc, pctx);
   const pr = printableRect(doc, layout.length);
   const [W] = designSize(doc, layout.length);
@@ -640,7 +640,7 @@ function alignTo(kind: 'left' | 'hcenter' | 'right' | 'top' | 'vmiddle' | 'botto
 
 function distribute(ids: string[]) {
   const s = useEditor.getState();
-  const layout = computeLayout(s.doc, previewContext(s.doc, s.previewIndex));
+  const layout = computeLayout(s.doc, previewContext(s.doc, s.previewIndex, s.settings.dateFormat));
   const els = s.doc.elements.filter((e) => ids.includes(e.id)).map((e) => ({ e, b: layout.boxes.get(e.id) ?? e })).sort((a, b) => a.b.x - b.b.x);
   if (els.length < 3) return;
   const total = els.reduce((sum, x) => sum + x.b.w, 0);

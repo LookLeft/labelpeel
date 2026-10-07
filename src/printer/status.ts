@@ -109,6 +109,19 @@ export function parseStatus(b: Uint8Array): PrinterStatus | null {
   };
 }
 
+/** Every status packet in a stream of bytes, in order. */
+export function findAllStatus(buf: Uint8Array): PrinterStatus[] {
+  const out: PrinterStatus[] = [];
+  for (let i = 0; i + 32 <= buf.length; ) {
+    const s = buf[i] === 0x80 && buf[i + 1] === 0x20 ? parseStatus(buf.subarray(i, i + 32)) : null;
+    if (s) {
+      out.push(s);
+      i += 32;
+    } else i++;
+  }
+  return out;
+}
+
 /** Find a status packet inside a stream of bytes. */
 export function findStatus(buf: Uint8Array): { status: PrinterStatus; end: number } | null {
   for (let i = 0; i + 32 <= buf.length; i++) {

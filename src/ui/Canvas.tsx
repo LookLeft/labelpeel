@@ -50,6 +50,18 @@ function hit(px: number, py: number, b: Box, rot: number, slop: number) {
   return Math.abs(l.x) <= b.w / 2 + slop && Math.abs(l.y) <= Math.max(b.h, 0) / 2 + slop;
 }
 
+/**
+ * Frames often cover the whole label, so only their border is clickable;
+ * clicks inside reach the content or the empty label.
+ */
+const isFrame = (el: LabelElement) => el.type === 'shape' && el.shape === 'frame';
+
+function hitBorder(px: number, py: number, b: Box, rot: number, slop: number, band: number) {
+  const l = toLocal(px, py, b, rot);
+  const inside = Math.abs(l.x) <= b.w / 2 - band && Math.abs(l.y) <= b.h / 2 - band;
+  return hit(px, py, b, rot, slop) && !inside;
+}
+
 function aabb(b: Box, rot: number): Box {
   const r = ((rot % 360) + 360) % 360;
   if (!r) return b;
@@ -370,6 +382,11 @@ export function EditorCanvas() {
     for (let i = doc.elements.length - 1; i >= 0; i--) {
       const el = doc.elements[i];
       if (el.hidden) continue;
+      if (isFrame(el)) {
+        // Wide enough to grab hazard stripes and to hit easily when zoomed out.
+        if (hitBorder(x, y, boxOf(el), el.rotation, slop, Math.max(8 / view.zoom, 1.5))) return el;
+        continue;
+      }
       if (hit(x, y, boxOf(el), el.rotation, el.type === 'shape' && el.shape === 'line' ? 4 / view.zoom : slop)) return el;
     }
     return null;
@@ -565,6 +582,8 @@ export function EditorCanvas() {
           .filter((el) => !el.hidden)
           .filter((el) => {
             const b = aabb(boxOf(el), el.rotation);
+            // Frames are only picked up when the marquee contains them.
+            if (isFrame(el)) return b.x >= marquee.x && b.x + b.w <= marquee.x + marquee.w && b.y >= marquee.y && b.y + b.h <= marquee.y + marquee.h;
             return b.x < marquee.x + marquee.w && b.x + b.w > marquee.x && b.y < marquee.y + marquee.h && b.y + b.h > marquee.y;
           })
           .map((el) => el.id);

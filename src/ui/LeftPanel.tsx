@@ -250,6 +250,11 @@ function DataTab() {
   const serial = doc.serial;
   const setSerial = (patch: Partial<typeof serial>) => update((d) => ({ ...d, serial: { ...d.serial, ...patch } }), 'serial');
   const selected = data ? (data.selected ?? data.rows.map((_, i) => i)) : [];
+  // Label number for a data row, in print order (which "Reverse order" flips).
+  const labelOf = (row: number) => {
+    const pos = selected.indexOf(row);
+    return pos < 0 ? -1 : doc.print.reverse ? selected.length - 1 - pos : pos;
+  };
 
   return (
     <>
@@ -317,7 +322,7 @@ function DataTab() {
                   {data.rows.map((r, i) => {
                     const on = selected.includes(i);
                     return (
-                      <tr key={i} className={selected.indexOf(i) === previewIndex ? 'cur' : ''} onClick={() => on && useEditor.getState().set({ previewIndex: selected.indexOf(i) })}>
+                      <tr key={i} className={on && labelOf(i) === previewIndex ? 'cur' : ''} onClick={() => on && useEditor.getState().set({ previewIndex: labelOf(i) })}>
                         <td>
                           <input
                             type="checkbox"

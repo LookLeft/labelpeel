@@ -1,5 +1,6 @@
 import { setMeasurePass } from '../model/labelTypes';
 import { previewContext } from '../model/pages';
+import { useEditor } from '../state/store';
 import type { LabelDoc } from '../model/types';
 import { elementBox } from './render';
 
@@ -9,7 +10,7 @@ const GAP = 1.5;
 // elements ("__after:4" leaves a 4 mm gap), "__right" after everything; both
 // need measured text widths.
 setMeasurePass((doc: LabelDoc): LabelDoc => {
-  const pctx = previewContext(doc);
+  const pctx = previewContext(doc, 0, useEditor.getState().settings.dateFormat);
   const elements = [...doc.elements];
   let right = 0;
   for (let i = 0; i < elements.length; i++) {

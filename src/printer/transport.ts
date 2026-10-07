@@ -54,6 +54,7 @@ export async function connectUsb(device?: USBDevice): Promise<Transport> {
   const out = alt.endpoints.find((e) => e.type === 'bulk' && e.direction === 'out');
   const inp = alt.endpoints.find((e) => e.type === 'bulk' && e.direction === 'in');
   if (!out) throw new Error('No bulk OUT endpoint.');
+  let inflight: Promise<USBInTransferResult> | null = null;
 
   const t: Transport = {
     kind: 'usb',
@@ -71,10 +72,11 @@ export async function connectUsb(device?: USBDevice): Promise<Transport> {
       const deadline = Date.now() + timeoutMs;
       const parts: number[] = [];
       while (Date.now() < deadline) {
-        const r = await Promise.race([
-          dev.transferIn(inp.endpointNumber, 64),
-          sleep(Math.max(10, deadline - Date.now())).then(() => null),
-        ]);
+        // A transfer that outlives a timed-out read stays pending and would
+        // swallow the next reply, so it's kept until a read collects its result.
+        inflight ??= dev.transferIn(inp.endpointNumber, 64).catch(() => ({ status: 'stall' }) as USBInTransferResult);
+        const r = await Promise.race([inflight, sleep(Math.max(10, deadline - Date.now())).then(() => null)]);
+        if (r) inflight = null;
         if (r && r.data && r.data.byteLength) {
           parts.push(...new Uint8Array(r.data.buffer, r.data.byteOffset, r.data.byteLength));
           if (parts.length >= 32) break;

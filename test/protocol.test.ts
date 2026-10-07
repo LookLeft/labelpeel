@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildJob, concat, packBits, unpackBits } from '../src/printer/protocol';
 import { bitmapToRaster } from '../src/printer/raster';
 import { profileById, lineBytes } from '../src/printer/profiles';
+import { findAllStatus } from '../src/printer/status';
 
 const e560 = profileById('pt-e560bt');
 
@@ -76,5 +77,24 @@ describe('PT-E560BT minimal job', () => {
     expect(find([0x1b, 0x69, 0x4b, 0x0c])).toBeGreaterThan(0); // half cut + no chain
     expect(s.filter((b, i) => b === 0x0c && s[i - 1] !== 0x69 && s[i - 1] !== 0x4b).length).toBeGreaterThanOrEqual(1);
     expect(s[s.length - 1]).toBe(0x1a);
+  });
+});
+
+describe('status packets', () => {
+  const packet = (type: number, err1 = 0) => {
+    const b = new Uint8Array(32);
+    b[0] = 0x80;
+    b[1] = 0x20;
+    b[8] = err1;
+    b[10] = 24;
+    b[18] = type;
+    return b;
+  };
+
+  it('finds every packet in a stream, including ones after noise', () => {
+    const stream = concat([new Uint8Array([0x00, 0x13]), packet(0x06), packet(0x01), new Uint8Array([0x80]), packet(0x02, 0x01)]);
+    const all = findAllStatus(stream);
+    expect(all.map((s) => s.statusType)).toEqual([0x06, 0x01, 0x02]);
+    expect(all[2].errors.length).toBeGreaterThan(0);
   });
 });

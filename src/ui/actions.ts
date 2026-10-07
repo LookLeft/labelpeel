@@ -74,7 +74,7 @@ export async function save(saveAs = false) {
 
 export async function thumbnail(doc: LabelDoc, maxW = 360, maxH = 80): Promise<HTMLCanvasElement> {
   await preloadDoc(doc, [doc.media.inkColor]);
-  const pctx = previewContext(doc);
+  const pctx = previewContext(doc, 0, S().settings.dateFormat);
   const layout = computeLayout(doc, pctx);
   const W = doc.orientation === 'portrait' ? doc.media.width : layout.length;
   const H = doc.orientation === 'portrait' ? layout.length : doc.media.width;
@@ -158,7 +158,7 @@ export function insertShape(kind: ShapeKind) {
   const doc = S().doc;
   if (kind === 'frame') {
     // A new frame goes around the whole printable area, behind everything else.
-    const length = computeLayout(doc, previewContext(doc, S().previewIndex)).length;
+    const length = computeLayout(doc, previewContext(doc, S().previewIndex, S().settings.dateFormat)).length;
     const r = printableRect(doc, length);
     const inset = 0.5;
     const box = doc.orientation === 'portrait' ? { x: r.x, w: r.w, y: inset, h: length - 2 * inset } : { x: inset, w: length - 2 * inset, y: r.y, h: r.h };

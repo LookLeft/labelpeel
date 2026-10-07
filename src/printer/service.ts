@@ -7,7 +7,7 @@ import { renderPrintBitmap, type PrintBitmap } from '../render/render';
 import { buildFeedCutJob, buildJob, cmdInit, cmdInvalidate, cmdStatusRequest, concat, hex, type JobOptions } from './protocol';
 import { profileById, profileByPid, type PrinterProfile } from './profiles';
 import { bitmapToRaster } from './raster';
-import { findStatus, type PrinterStatus } from './status';
+import { findAllStatus, findStatus, type PrinterStatus } from './status';
 import { connectNative } from './native';
 import { connectSerial, connectUsb, type Transport } from './transport';
 
@@ -181,15 +181,36 @@ export async function runJob(job: PreparedJob): Promise<void> {
       usePrinter.setState({ progress: sent / total });
     }
     log('info', 'Job sent.');
-    // Read any completion / error status the printer pushes.
-    const bytes = await t.read(1500);
-    const found = bytes.length ? findStatus(bytes) : null;
-    if (found) {
-      usePrinter.setState({ status: found.status });
-      if (found.status.errors.length) throw new Error(`Printer reports: ${found.status.errors.join(', ')}`);
-    }
+    await watchJob(t);
   } finally {
     usePrinter.setState({ busy: false });
+  }
+}
+
+/**
+ * Follow the status packets the printer pushes while it prints: phase changes,
+ * "printing completed" (possibly once per label) and errors such as tape end or
+ * a jam, which can arrive well after the data has been sent.
+ */
+async function watchJob(t: Transport) {
+  const start = Date.now();
+  const hardStop = start + 20000;
+  let deadline = start + 2500; // links that never report status end here
+  let buf: Uint8Array = new Uint8Array();
+  let seen = 0;
+  while (Date.now() < deadline) {
+    const bytes = await t.read(Math.max(50, deadline - Date.now()));
+    if (!bytes.length) continue;
+    buf = concat([buf, bytes]);
+    const all = findAllStatus(buf);
+    for (const s of all.slice(seen)) {
+      log('rx', `${s.statusTypeName}${s.errors.length ? `: ${s.errors.join(', ')}` : ''}`);
+      usePrinter.setState({ status: s });
+      if (s.statusType === 0x02 || s.errors.length) throw new Error(`Printer reports: ${s.errors.join(', ') || 'an error'}`);
+      // Still printing: keep waiting. Completed: wait briefly for more labels.
+      deadline = s.statusType === 0x01 ? Math.min(hardStop, Date.now() + 1500) : hardStop;
+    }
+    seen = all.length;
   }
 }
 

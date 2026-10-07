@@ -108,13 +108,22 @@ export interface LibraryItem {
   doc: LabelDoc;
 }
 
+// One shared connection, reopened if the browser closes it.
+let conn: Promise<IDBDatabase> | null = null;
 function db(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+  conn ??= new Promise<IDBDatabase>((resolve, reject) => {
     const req = indexedDB.open('labelsmith', 1);
     req.onupgradeneeded = () => req.result.createObjectStore('labels', { keyPath: 'id' });
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      req.result.onclose = () => (conn = null);
+      resolve(req.result);
+    };
+    req.onerror = () => {
+      conn = null;
+      reject(req.error);
+    };
   });
+  return conn;
 }
 
 async function tx<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
