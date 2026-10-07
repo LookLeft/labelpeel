@@ -1,6 +1,6 @@
 # Generate the Xcode project with XcodeGen (brew install xcodegen), from this
 # folder: `xcodegen`. ./build-web.sh does both steps.
-name: PtouchStudio
+name: Labelsmith
 options:
   bundleIdPrefix: com.alexbrazier
   deploymentTarget:
@@ -11,11 +11,11 @@ settings:
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
 targets:
-  PtouchStudio:
+  Labelsmith:
     type: application
     platform: iOS
     sources:
-      - path: PtouchStudio
+      - path: Labelsmith
       # The built web app (copied from ../dist by build-web.sh), bundled as a
       # folder so its relative paths stay intact.
       - path: Web
@@ -23,14 +23,15 @@ targets:
         buildPhase: resources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.alexbrazier.ptouchstudio
+        PRODUCT_BUNDLE_IDENTIFIER: com.alexbrazier.labelsmith
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: JK8FC72ZE9
         GENERATE_INFOPLIST_FILE: NO
     info:
-      path: PtouchStudio/Info.plist
+      path: Labelsmith/Info.plist
       properties:
-        CFBundleDisplayName: P-touch Studio
+        CFBundleDisplayName: Labelsmith
         LSRequiresIPhoneOS: true
         UILaunchScreen: {}
         UIApplicationSceneManifest:
@@ -48,4 +49,4 @@ targets:
         # framework (Bluetooth Classic printers are MFi accessories on iOS).
         UISupportedExternalAccessoryProtocols:
           - com.brother.ptcbp
-        NSBluetoothAlwaysUsageDescription: P-touch Studio connects to your Brother label printer over Bluetooth.
+        NSBluetoothAlwaysUsageDescription: Labelsmith connects to your label printer over Bluetooth to print your designs.

@@ -2,7 +2,7 @@ import Papa from 'papaparse';
 import type { DataSource, LabelDoc } from '../model/types';
 import { migrate } from '../state/store';
 
-export const FILE_EXT = '.ptlabel';
+export const FILE_EXT = '.labelsmith';
 const MIME = 'application/json';
 
 type Picker = {
@@ -11,11 +11,11 @@ type Picker = {
 };
 const w = () => window as unknown as Picker;
 
-export const serialize = (doc: LabelDoc) => JSON.stringify({ app: 'ptouch-studio', ...doc }, null, 1);
+export const serialize = (doc: LabelDoc) => JSON.stringify({ app: 'labelsmith', ...doc }, null, 1);
 
 export function parseDoc(text: string): LabelDoc {
   const json = JSON.parse(text);
-  if (!json || typeof json !== 'object' || !Array.isArray(json.elements)) throw new Error('Not a P-touch Studio label file.');
+  if (!json || typeof json !== 'object' || !Array.isArray(json.elements)) throw new Error('Not a Labelsmith label file.');
   delete json.app;
   return migrate(json);
 }
@@ -41,7 +41,7 @@ export async function saveDoc(doc: LabelDoc, handle: FileSystemFileHandle | null
     if (!h) {
       h = await w().showSaveFilePicker!({
         suggestedName: safeName(doc.name),
-        types: [{ description: 'P-touch Studio label', accept: { [MIME]: [FILE_EXT, '.json'] } }],
+        types: [{ description: 'Labelsmith label', accept: { [MIME]: [FILE_EXT, '.json'] } }],
       });
     }
     const writable = await (h as FileSystemFileHandle & { createWritable: () => Promise<FileSystemWritableFileStream> }).createWritable();
@@ -110,7 +110,7 @@ export interface LibraryItem {
 
 function db(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('ptouch-studio', 1);
+    const req = indexedDB.open('labelsmith', 1);
     req.onupgradeneeded = () => req.result.createObjectStore('labels', { keyPath: 'id' });
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);

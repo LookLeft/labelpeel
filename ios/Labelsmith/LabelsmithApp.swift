@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct PtouchStudioApp: App {
+struct LabelsmithApp: App {
     var body: some Scene {
         WindowGroup {
             WebContainer()

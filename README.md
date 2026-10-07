@@ -1,6 +1,8 @@
-# P-touch Studio
+# Labelsmith
 
 A label designer for Brother P-touch printers that runs in the browser and prints directly over Bluetooth or USB. It was built first for the **PT-E560BT** and has profiles for the rest of the PT range.
+
+> Labelsmith is an independent project. It is not affiliated with, endorsed by or sponsored by Brother Industries, Ltd. Brother, P-touch, TZe, HSe and FLe are trademarks of Brother Industries, Ltd.; they and printer model names are used here only to describe compatibility.
 
 It is a static site, so it deploys to GitHub Pages and works offline as an installable app.
 
@@ -41,7 +43,7 @@ It is a static site, so it deploys to GitHub Pages and works offline as an insta
   - cut after each label, at the end, or never; half cut; chain printing; mirror
   - copies, and splitting a long design into several labels
 - **Preview.** A dot-accurate preview shows exactly what the print head will print. You can also export a PNG or a raw `.bin` print file.
-- **Files.** Save, Save As and Open use `.ptlabel` (JSON) files, with a local library of saved labels and autosave.
+- **Files.** Save, Save As and Open use `.labelsmith` (JSON) files, with a local library of saved labels and autosave.
 - **Brother `.lbx` import** (see below).
 
 ## Printing
@@ -73,7 +75,7 @@ Because the format isn't documented, **File → Import .lbx** imports it on a be
 - text, images and shapes
 - common barcodes
 
-Anything it can't map is listed as a warning after import. The app doesn't write `.lbx`; it saves its own `.ptlabel` format.
+Anything it can't map is listed as a warning after import. The app doesn't write `.lbx`; it saves its own `.labelsmith` format.
 
 ## iPhone and iPad
 
@@ -105,4 +107,8 @@ To turn on deployment once, go to **Settings → Pages → Build and deployment 
 
 ## Credits
 
-The protocol details come from [ptouch-print](https://git.familie-radermacher.ch/linux/ptouch-print.git), [ptouch-rs](https://github.com/vowstar/ptouch-rs), [ptouch-webapp](https://github.com/the78mole/ptouch-webapp) and Brother's raster command reference. Brother, P-touch and TZe are trademarks of Brother Industries; this project is not affiliated with Brother.
+The protocol details come from [ptouch-print](https://git.familie-radermacher.ch/linux/ptouch-print.git), [ptouch-rs](https://github.com/vowstar/ptouch-rs), [ptouch-webapp](https://github.com/the78mole/ptouch-webapp) and Brother's raster command reference. No code from those projects is included; they were used as references for the printer's command protocol. Brother's `.lbx` format is read only so you can import your own files.
+
+Brother, P-touch, TZe, HSe and FLe are trademarks of Brother Industries, Ltd. Labelsmith is not affiliated with Brother.
+
+Third-party open-source licences for everything bundled in the app are collected into `licenses.txt` at build time (`scripts/licenses.mjs`) and shown under **View → About Labelsmith**.

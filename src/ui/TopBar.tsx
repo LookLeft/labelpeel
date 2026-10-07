@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   FilePlus2, FolderOpen, Save, Undo2, Redo2, Printer, ChevronDown, Download, FileImage, FileUp, Bluetooth, Usb, Library,
-  Sun, Moon, Monitor, Upload, Type as TypeIcon, Tag,
+  Sun, Moon, Monitor, Upload, Type as TypeIcon, Tag, Info,
 } from 'lucide-react';
 import { useEditor } from '../state/store';
 import { usePrinter } from '../printer/service';
@@ -50,12 +50,12 @@ export function TopBar() {
 
   return (
     <header className="topbar">
-      <div className="brand">
+      <button className="brand" onClick={() => st().set({ aboutOpen: true })} title="About Labelsmith">
         <div className="brand-mark">
           <Tag size={15} />
         </div>
-        <span className="brand-name">P-touch Studio</span>
-      </div>
+        <span className="brand-name">Labelsmith</span>
+      </button>
       <Menu label="File">
         {(close) => (
           <>
@@ -78,10 +78,10 @@ export function TopBar() {
       <Menu label="View">
         {(close) => (
           <>
-            <Item label="Zoom in" kbd={`${mod}+`} onClick={() => { close(); window.dispatchEvent(new CustomEvent('ptouch-zoom', { detail: 'in' })); }} />
-            <Item label="Zoom out" kbd={`${mod}-`} onClick={() => { close(); window.dispatchEvent(new CustomEvent('ptouch-zoom', { detail: 'out' })); }} />
-            <Item label="Fit label" kbd={`${mod}0`} onClick={() => { close(); window.dispatchEvent(new CustomEvent('ptouch-zoom', { detail: 'fit' })); }} />
-            <Item label="Actual size (100%)" kbd={`${mod}1`} onClick={() => { close(); window.dispatchEvent(new CustomEvent('ptouch-zoom', { detail: '100' })); }} />
+            <Item label="Zoom in" kbd={`${mod}+`} onClick={() => { close(); window.dispatchEvent(new CustomEvent('labelsmith-zoom', { detail: 'in' })); }} />
+            <Item label="Zoom out" kbd={`${mod}-`} onClick={() => { close(); window.dispatchEvent(new CustomEvent('labelsmith-zoom', { detail: 'out' })); }} />
+            <Item label="Fit label" kbd={`${mod}0`} onClick={() => { close(); window.dispatchEvent(new CustomEvent('labelsmith-zoom', { detail: 'fit' })); }} />
+            <Item label="Actual size (100%)" kbd={`${mod}1`} onClick={() => { close(); window.dispatchEvent(new CustomEvent('labelsmith-zoom', { detail: '100' })); }} />
             <div className="menu-sep" />
             <Item label={`${st().dotPreview ? '✓ ' : ''}Dot preview (exact print)`} onClick={() => { close(); st().set({ dotPreview: !st().dotPreview }); }} />
             <Item label={`${st().settings.showGuides ? '✓ ' : ''}Show guides`} onClick={() => { close(); st().setSettings({ showGuides: !st().settings.showGuides }); }} />
@@ -100,6 +100,8 @@ export function TopBar() {
             <Item icon={<Monitor size={15} />} label={`${theme === 'system' ? '✓ ' : ''}Theme: system`} onClick={() => { close(); st().setSettings({ theme: 'system' }); }} />
             <Item icon={<Moon size={15} />} label={`${theme === 'dark' ? '✓ ' : ''}Theme: dark`} onClick={() => { close(); st().setSettings({ theme: 'dark' }); }} />
             <Item icon={<Sun size={15} />} label={`${theme === 'light' ? '✓ ' : ''}Theme: light`} onClick={() => { close(); st().setSettings({ theme: 'light' }); }} />
+            <div className="menu-sep" />
+            <Item icon={<Info size={15} />} label="About Labelsmith" onClick={() => { close(); st().set({ aboutOpen: true }); }} />
           </>
         )}
       </Menu>

@@ -3,8 +3,8 @@ import UIKit
 import WebKit
 
 /// Hosts the bundled web app in a WKWebView, served from the app bundle over
-/// a private ptouch:// scheme so ES modules and fetch() behave as on a web
-/// server, with the printer bridge exposed as window.webkit.messageHandlers.ptouch.
+/// a private labelsmith:// scheme so ES modules and fetch() behave as on a web
+/// server, with the printer bridge exposed as window.webkit.messageHandlers.labelsmith.
 struct WebContainer: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> WebViewController { WebViewController() }
     func updateUIViewController(_ vc: WebViewController, context: Context) {}
@@ -23,7 +23,7 @@ final class WebViewController: UIViewController, WKUIDelegate, WKNavigationDeleg
         let config = WKWebViewConfiguration()
         let root = Bundle.main.url(forResource: "Web", withExtension: nil)
         config.setURLSchemeHandler(BundleSchemeHandler(root: root), forURLScheme: BundleSchemeHandler.scheme)
-        config.userContentController.addScriptMessageHandler(bridge, contentWorld: .page, name: "ptouch")
+        config.userContentController.addScriptMessageHandler(bridge, contentWorld: .page, name: "labelsmith")
 
         webView = WKWebView(frame: .zero, configuration: config)
         webView.uiDelegate = self
@@ -93,7 +93,7 @@ final class WebViewController: UIViewController, WKUIDelegate, WKNavigationDeleg
             return
         }
         if let url = action.request.url, let scheme = url.scheme,
-           !["ptouch", "blob", "data", "about"].contains(scheme) {
+           ![BundleSchemeHandler.scheme, "blob", "data", "about"].contains(scheme) {
             UIApplication.shared.open(url)
             decisionHandler(.cancel)
             return
@@ -133,7 +133,7 @@ final class WebViewController: UIViewController, WKUIDelegate, WKNavigationDeleg
 
 /// Serves files from the bundled Web folder.
 final class BundleSchemeHandler: NSObject, WKURLSchemeHandler {
-    static let scheme = "ptouch"
+    static let scheme = "labelsmith"
     private let root: URL?
 
     init(root: URL?) {

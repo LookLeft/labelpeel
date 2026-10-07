@@ -1,11 +1,11 @@
 {
-  "name": "ptouch-studio",
+  "name": "labelsmith",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "node scripts/licenses.mjs && vite",
+    "build": "node scripts/licenses.mjs && tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc -b"

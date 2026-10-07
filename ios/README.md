@@ -1,4 +1,4 @@
-# P-touch Studio for iPhone and iPad
+# Labelsmith for iPhone and iPad
 
 A small native wrapper around the web app. It shows the same app in a web
 view and adds a Bluetooth bridge, because iOS browsers can't reach printers.
@@ -13,8 +13,8 @@ Store would also need Brother's MFi approval for the accessory protocol.
 
 1. Install Xcode and XcodeGen: `brew install xcodegen`
 2. From the repo root: `npm install`, then `ios/build-web.sh`
-   (builds the web app, copies it to `ios/Web`, generates `ios/PtouchStudio.xcodeproj`).
-3. Open `ios/PtouchStudio.xcodeproj`. Under the PtouchStudio target's
+   (builds the web app, copies it to `ios/Web`, generates `ios/Labelsmith.xcodeproj`).
+3. Open `ios/Labelsmith.xcodeproj`. Under the Labelsmith target's
    Signing & Capabilities, pick your team. If the bundle ID is taken, change it.
 4. Plug in your iPhone (Developer Mode on), choose it as the run destination, and press Run.
    The first time, trust the developer certificate in Settings > General > VPN & Device Management.
@@ -33,5 +33,5 @@ After changing the web app, run `ios/build-web.sh` again and rebuild in Xcode.
 
 ## Debugging
 
-On the Mac, Safari > Develop > (your iPhone) > P-touch Studio opens the web
+On the Mac, Safari > Develop > (your iPhone) > Labelsmith opens the web
 inspector for the app, including the printer log.

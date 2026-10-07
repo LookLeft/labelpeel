@@ -2,7 +2,7 @@ import ExternalAccessory
 import Foundation
 import WebKit
 
-/// The "ptouch" script message handler. iOS gives apps Bluetooth Classic
+/// The "labelsmith" script message handler. iOS gives apps Bluetooth Classic
 /// printers only through the External Accessory framework, so this opens an
 /// EASession on Brother's command protocol and moves raw bytes for the web
 /// app, which builds the same raster jobs it sends over Web Serial.
@@ -214,6 +214,6 @@ final class PrinterBridge: NSObject, WKScriptMessageHandlerWithReply, StreamDele
     }
 
     private func notifyDisconnect() {
-        webView?.evaluateJavaScript("window.__ptouchNativeDisconnect && window.__ptouchNativeDisconnect()")
+        webView?.evaluateJavaScript("window.__labelsmithNativeDisconnect && window.__labelsmithNativeDisconnect()")
     }
 }

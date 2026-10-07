@@ -1,5 +1,5 @@
 // Transport for the iOS wrapper app (ios/). The app hosts this build in a
-// WKWebView and exposes a "ptouch" message handler that talks to the printer
+// WKWebView and exposes a "labelsmith" message handler that talks to the printer
 // through Apple's External Accessory framework, which is the only way iOS
 // lets an app use a Bluetooth Classic printer. Bytes cross the bridge as
 // base64.
@@ -12,12 +12,12 @@ interface NativeHandler {
 
 declare global {
   interface Window {
-    webkit?: { messageHandlers?: { ptouch?: NativeHandler } };
-    __ptouchNativeDisconnect?: () => void;
+    webkit?: { messageHandlers?: { labelsmith?: NativeHandler } };
+    __labelsmithNativeDisconnect?: () => void;
   }
 }
 
-const handler = () => (typeof window !== 'undefined' ? window.webkit?.messageHandlers?.ptouch : undefined);
+const handler = () => (typeof window !== 'undefined' ? window.webkit?.messageHandlers?.labelsmith : undefined);
 
 export const supportsNative = () => !!handler();
 
@@ -48,10 +48,10 @@ export async function connectNative(): Promise<Transport> {
       return b64 ? fromB64(b64) : new Uint8Array();
     },
     async close() {
-      window.__ptouchNativeDisconnect = undefined;
+      window.__labelsmithNativeDisconnect = undefined;
       await call('close').catch(() => undefined);
     },
   };
-  window.__ptouchNativeDisconnect = () => t.onDisconnect?.();
+  window.__labelsmithNativeDisconnect = () => t.onDisconnect?.();
   return t;
 }

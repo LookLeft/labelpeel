@@ -7,6 +7,7 @@ import { Inspector } from './ui/Inspector';
 import { Wizard } from './ui/Wizard';
 import { PrintDialog } from './ui/PrintDialog';
 import { PrinterPanel } from './ui/PrinterPanel';
+import { AboutDialog } from './ui/AboutDialog';
 import { useEditor, copySelection, pasteClipboard } from './state/store';
 import { usePrinter, effectiveProfile } from './printer/service';
 import { openFile, save, insertText } from './ui/actions';
@@ -21,13 +22,13 @@ function useShortcuts() {
       const t = e.target as HTMLElement;
       if (t.closest('input, textarea, select, [contenteditable]')) return;
       const s = useEditor.getState();
-      if (s.wizardOpen || s.printOpen || s.printerOpen) {
-        if (e.key === 'Escape') s.set({ wizardOpen: false, printOpen: false, printerOpen: false });
+      if (s.wizardOpen || s.printOpen || s.printerOpen || s.aboutOpen) {
+        if (e.key === 'Escape') s.set({ wizardOpen: false, printOpen: false, printerOpen: false, aboutOpen: false });
         return;
       }
       const mod = e.ctrlKey || e.metaKey;
       const k = e.key.toLowerCase();
-      const zoom = (detail: string) => window.dispatchEvent(new CustomEvent('ptouch-zoom', { detail }));
+      const zoom = (detail: string) => window.dispatchEvent(new CustomEvent('labelsmith-zoom', { detail }));
       if (mod && k === 'z' && !e.shiftKey) return void (e.preventDefault(), s.undo());
       if (mod && (k === 'y' || (k === 'z' && e.shiftKey))) return void (e.preventDefault(), s.redo());
       if (mod && k === 's') return void (e.preventDefault(), save(e.shiftKey));
@@ -171,6 +172,7 @@ export default function App() {
       <Wizard />
       <PrintDialog />
       <PrinterPanel />
+      <AboutDialog />
       <Toast />
     </div>
   );

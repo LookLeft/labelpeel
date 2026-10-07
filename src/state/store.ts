@@ -4,8 +4,8 @@ import type { LabelDoc, LabelElement } from '../model/types';
 import { applyLabelType } from '../model/labelTypes';
 
 const HISTORY_LIMIT = 200;
-const AUTOSAVE_KEY = 'ptouch-studio:autosave';
-const SETTINGS_KEY = 'ptouch-studio:settings';
+const AUTOSAVE_KEY = 'labelsmith:autosave';
+const SETTINGS_KEY = 'labelsmith:settings';
 
 export interface Settings {
   profileId: string;
@@ -91,6 +91,7 @@ interface EditorState {
   wizardOpen: boolean;
   printOpen: boolean;
   printerOpen: boolean;
+  aboutOpen: boolean;
   settings: Settings;
   toast: { id: number; text: string; kind: 'info' | 'error' | 'success' } | null;
 
@@ -155,6 +156,7 @@ export const useEditor = create<EditorState>((set, get) => {
     wizardOpen: !loadAutosave(),
     printOpen: false,
     printerOpen: false,
+    aboutOpen: false,
     settings: loadSettings(),
     toast: null,
 

@@ -78,7 +78,7 @@ textarea {
   height: 100dvh;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
-.mobile-switch,
+.app > .mobile-switch,
 .mobile-only {
   display: none;
 }
@@ -96,6 +96,10 @@ textarea {
 }
 .brand {
   display: flex;
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
   align-items: center;
   gap: 8px;
   font-weight: 700;
@@ -973,7 +977,7 @@ textarea {
   .app.mp-properties .left {
     display: none;
   }
-  .mobile-switch {
+  .app > .mobile-switch {
     display: flex;
     grid-area: switch;
     margin: 0;

@@ -625,8 +625,8 @@ export function EditorCanvas() {
         return { zoom, panX: cx - mx * zoom, panY: cy - my * zoom };
       });
     };
-    window.addEventListener('ptouch-zoom', onZoom);
-    return () => window.removeEventListener('ptouch-zoom', onZoom);
+    window.addEventListener('labelsmith-zoom', onZoom);
+    return () => window.removeEventListener('labelsmith-zoom', onZoom);
   }, [fit, size]);
 
   // ---------------------------------------------------------------- overlay
@@ -737,11 +737,11 @@ export function EditorCanvas() {
           <Grid3x3 size={15} />
         </button>
         <div className="sep" />
-        <button className="btn ghost icon sm" title="Zoom out (Ctrl -)" onClick={() => window.dispatchEvent(new CustomEvent('ptouch-zoom', { detail: 'out' }))}>
+        <button className="btn ghost icon sm" title="Zoom out (Ctrl -)" onClick={() => window.dispatchEvent(new CustomEvent('labelsmith-zoom', { detail: 'out' }))}>
           <Minus size={15} />
         </button>
         <span className="pct">{Math.round((view.zoom / (96 / 25.4)) * 100)}%</span>
-        <button className="btn ghost icon sm" title="Zoom in (Ctrl +)" onClick={() => window.dispatchEvent(new CustomEvent('ptouch-zoom', { detail: 'in' }))}>
+        <button className="btn ghost icon sm" title="Zoom in (Ctrl +)" onClick={() => window.dispatchEvent(new CustomEvent('labelsmith-zoom', { detail: 'in' }))}>
           <Plus size={15} />
         </button>
         <button className="btn ghost icon sm" title="Fit (Ctrl 0)" onClick={fit}>
