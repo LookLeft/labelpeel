@@ -66,21 +66,22 @@ If labels don't print, turn on **Printer → Advanced → Minimal command set**.
 
 The cut, half-cut and chain commands follow Brother's raster command reference but haven't been tested on hardware yet.
 
-## Can it use Brother's own file format?
+## Brother's own file format (.lbx)
 
-Partly. A `.lbx` file from P-touch Editor is a ZIP archive containing:
+P-touch Editor saves `.lbx` files: a ZIP archive with `label.xml` (the layout, in Brother's undocumented XML schema), `prop.xml` and any embedded images. Labelsmith both reads and writes them, matched against files saved by P-touch Editor. `test/lbx.test.ts` checks the same structures with small generated files; put real P-touch Editor files in `examples/` (not committed) to also test against those.
 
-- `label.xml`, which holds the layout in Brother's own undocumented XML schema
-- `prop.xml`
-- BMP images
+**File → Import P-touch Editor .lbx** brings in:
 
-Because the format isn't documented, **File → Import P-touch Editor .lbx** imports it on a best-effort basis. It brings in:
+- tape width, length (fixed or auto), margins, orientation and colours
+- text with its font, size, bold, italic, underline, alignment, line spacing, vertical text, the outline effect and shrink-to-fit
+- rectangles and rounded rectangles (outlined or filled), groups
+- tables, with cell text, merges, per-cell bold and alignment
+- barcodes (Code 128, QR, Data Matrix, EAN, UPC and others)
+- images, cropped as in P-touch Editor
 
-- tape size and orientation
-- text, images and shapes
-- common barcodes
+Brother's fonts are mapped to the closest bundled font (Helsinki to Inter, Helsinki Narrow and Utah Condensed to Roboto Condensed, and so on). Anything it can't map is listed after import, for example mixed styles within one text box, justified text, or P-touch Editor's decorative frames (imported as plain frames).
 
-Anything it can't map is listed as a warning after import. The app doesn't write `.lbx`; it saves its own `.labelsmith` format.
+**File → Export for P-touch Editor (.lbx)** writes text, rectangles, plain tables and Code 128 barcodes as normal P-touch Editor objects, so they stay editable there. Everything else (symbols, other shapes and frames, QR and other codes, blocks, filled table cells, white-on-black or rotated text, the label frame) is written as an image of exactly what Labelsmith prints, and smart fields are written as their current values. A message after export lists anything written this way.
 
 ## Mac app
 

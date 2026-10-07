@@ -8,3 +8,6 @@ public/licenses.txt
 # Local secrets (Android signing key etc.), never committed
 secrets/
 .env
+
+# Local P-touch Editor reference files (Brother content, large images); tests use them when present
+examples/

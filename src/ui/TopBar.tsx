@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useEditor } from '../state/store';
 import { usePrinter } from '../printer/service';
-import { downloadPrintFile, exportPng, importLbxFile, openFile, save, saveToLibrary, loadDataFile } from './actions';
+import { downloadPrintFile, exportLbxFile, exportPng, importLbxFile, openFile, save, saveToLibrary, loadDataFile } from './actions';
 import { loadFontFile, loadLocalFonts } from '../render/fonts';
 import { pickFile } from '../io/files';
 
@@ -67,6 +67,7 @@ export function TopBar() {
             <Item icon={<Library size={15} />} label="Save to My labels" onClick={() => { close(); saveToLibrary(); }} />
             <div className="menu-sep" />
             <Item icon={<FileUp size={15} />} label="Import P-touch Editor .lbx…" onClick={() => { close(); importLbxFile(); }} />
+            <Item icon={<Download size={15} />} label="Export for P-touch Editor (.lbx)" onClick={() => { close(); exportLbxFile(); }} />
             <Item icon={<Upload size={15} />} label="Load CSV data…" onClick={() => { close(); loadDataFile(); st().set({ leftTab: 'data' }); }} />
             <div className="menu-sep" />
             <Item icon={<FileImage size={15} />} label="Export PNG (preview)" onClick={() => { close(); exportPng('preview'); }} />

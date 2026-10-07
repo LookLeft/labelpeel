@@ -139,6 +139,8 @@ export function fitText(
   sizePt: number,
   autoWidth: boolean,
   stacked = false,
+  /** Fixed size, but made smaller when the text doesn't fit (P-touch Editor's "shrink"). */
+  shrink = false,
 ): TextFit {
   const lines = stacked ? Array.from(text.replace(/\n/g, '')) : text.split('\n');
   const { cap, desc } = fontMetrics(st.font, st.bold, st.italic);
@@ -160,6 +162,11 @@ export function fitText(
     em = Math.max(0.5, em);
   } else {
     em = sizePt * PT_TO_MM;
+    if (shrink) {
+      em = Math.min(em, Math.max(0, boxH - 2 * TEXT_SAFETY) / unitH);
+      if (!autoWidth && unitW > 0) em = Math.min(em, (boxW - st.letterSpacing * maxChars) / unitW);
+      em = Math.max(0.5, em);
+    }
   }
   return {
     lines,
@@ -257,6 +264,9 @@ interface DrawTextArgs {
   stacked?: boolean;
   /** Extra rotation of the text inside the box: 0, 90 or -90. */
   turn?: number;
+  /** Fill letters with this colour and outline them in `color`. */
+  outlineFill?: string;
+  shrink?: boolean;
 }
 
 function drawTextBox(ctx: CanvasRenderingContext2D, a: DrawTextArgs) {
@@ -272,7 +282,7 @@ function drawTextBox(ctx: CanvasRenderingContext2D, a: DrawTextArgs) {
     y = -h / 2;
   }
   const s = a.s;
-  const fit = fitText(a.text, a.st, w / s, h / s, a.autoSize, a.sizePt, false, a.stacked);
+  const fit = fitText(a.text, a.st, w / s, h / s, a.autoSize, a.sizePt, false, a.stacked, a.shrink);
   const em = fit.em * s;
   const blockH = fit.blockH * s;
   const safe = TEXT_SAFETY * s;
@@ -290,7 +300,17 @@ function drawTextBox(ctx: CanvasRenderingContext2D, a: DrawTextArgs) {
     const baseline = top + fit.ascent * em + i * a.st.lineHeight * em;
     // letterSpacing adds trailing space after the last glyph; compensate for alignment.
     const shift = align === 'center' ? ls / 2 : align === 'right' ? ls : 0;
-    ctx.fillText(line, tx + shift, baseline);
+    if (a.outlineFill) {
+      ctx.fillStyle = a.outlineFill;
+      ctx.fillText(line, tx + shift, baseline);
+      ctx.lineWidth = Math.max(1, em * 0.06);
+      ctx.lineJoin = 'round';
+      ctx.setLineDash([]);
+      ctx.strokeText(line, tx + shift, baseline);
+      ctx.fillStyle = a.color;
+    } else {
+      ctx.fillText(line, tx + shift, baseline);
+    }
     if (a.st.underline || a.st.strike) {
       const lw = Math.max(1, em * 0.07);
       const width = ctx.measureText(line).width;
@@ -351,6 +371,8 @@ function drawText(ctx: CanvasRenderingContext2D, el: TextElement, b: Box, o: Ren
     vAlign: el.vAlign,
     color,
     stacked: el.stacked,
+    outlineFill: el.outline ? (color === o.ink ? o.paper : o.ink) : undefined,
+    shrink: el.shrink,
   });
 }
 
@@ -866,6 +888,7 @@ function drawTable(ctx: CanvasRenderingContext2D, el: TableElement, b: Box, o: R
       align: cell.align ?? el.align,
       vAlign: el.vAlign,
       color,
+      shrink: el.shrink,
     });
   }
 

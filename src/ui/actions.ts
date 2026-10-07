@@ -3,7 +3,7 @@ import { applyLabelType, labelType, layoutPostPass } from '../model/labelTypes';
 import { previewContext } from '../model/pages';
 import type { LabelDoc, LabelElement, ShapeKind } from '../model/types';
 import { download, libraryPut, openDocFile, parseTable, pickFile, saveDoc } from '../io/files';
-import { importLbx } from '../io/lbx';
+import { exportLbx, importLbx } from '../io/lbx';
 import { preloadDoc } from '../render/assets';
 import { computeLayout, renderLabel, renderPrintBitmap } from '../render/render';
 import { concat } from '../printer/protocol';
@@ -51,6 +51,19 @@ async function importLbxBuffer(buf: ArrayBuffer, name: string) {
     S().notify(`Imported ${name}${warnings.length ? ` — ${warnings.join(' ')}` : ''}`, warnings.length ? 'info' : 'success');
   } catch (e) {
     S().notify(`Import failed: ${(e as Error).message}`, 'error');
+  }
+}
+
+/** Save the label as a P-touch Editor .lbx file. */
+export async function exportLbxFile() {
+  const s = S();
+  try {
+    await preloadDoc(s.doc);
+    const { data, warnings } = await exportLbx(s.doc, s.settings.dateFormat);
+    download(`${(s.doc.name || 'label').replace(/[\\/:*?"<>|]+/g, '-')}.lbx`, data, 'application/zip');
+    s.notify(warnings.length ? `Exported for P-touch Editor. ${warnings.join(' ')}` : 'Exported for P-touch Editor.', warnings.length ? 'info' : 'success');
+  } catch (e) {
+    s.notify(`Export failed: ${(e as Error).message}`, 'error');
   }
 }
 

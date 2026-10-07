@@ -357,6 +357,9 @@ function TextStyleControls({ el, up }: { el: TextElement | GridElement | TableEl
       <div className="grid2">
         <Field label={<>Size <Check checked={el.autoSize} onChange={(autoSize) => up({ autoSize })} label="Auto" /></>}>
           {!el.autoSize ? <NumberInput value={el.size} onChange={(size) => up({ size }, 'size')} unit="pt" min={2} max={300} step={0.5} /> : <div className="hint" style={{ paddingTop: 6 }}>Fits the box</div>}
+          {!el.autoSize && el.type !== 'grid' && (
+            <Check checked={!!el.shrink} onChange={(shrink) => up({ shrink } as never)} label="Shrink to fit" />
+          )}
         </Field>
         <Field label="Line height">
           <NumberInput value={el.lineHeight} onChange={(lineHeight) => up({ lineHeight }, 'lh')} min={0.6} max={3} step={0.05} />
@@ -386,6 +389,7 @@ function TextProps({ el, up }: { el: TextElement; up: Up<TextElement> }) {
       </Field>
       <Check checked={el.autoWidth} onChange={(autoWidth) => up({ autoWidth })} label="Width follows text" />
       <Check checked={el.invert} onChange={(invert) => up({ invert })} label="Inverted (white on black)" />
+      <Check checked={!!el.outline} onChange={(outline) => up({ outline })} label="Outline letters (hollow, for text on a black area)" />
       <Check checked={!!el.stacked} onChange={(stacked) => up({ stacked })} label="Stacked vertical letters" />
       <div className="grid2" style={{ marginTop: 8 }}>
         <Field label="Frame">

@@ -52,7 +52,13 @@ function waitFor(key: string): Promise<void> {
   });
 }
 
-const svgKey = (symbol: string, color: string, stroke?: number) => `sym|${symbol}|${color}|${stroke ?? ''}`;
+/** "#000" and "#000000" are the same colour; normalise so preloads match renders. */
+function normColor(color: string) {
+  const c = color.trim().toLowerCase();
+  return /^#[0-9a-f]{3}$/.test(c) ? `#${c[1]}${c[1]}${c[2]}${c[2]}${c[3]}${c[3]}` : c;
+}
+
+const svgKey = (symbol: string, color: string, stroke?: number) => `sym|${symbol}|${normColor(color)}|${stroke ?? ''}`;
 
 function svgDataUrl(svg: string, color: string) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg.replace(/currentColor/g, color))}`;

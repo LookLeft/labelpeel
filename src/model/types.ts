@@ -57,6 +57,12 @@ export interface TextElement extends BaseElement, TextStyle {
   /** Draw a frame around the text box. */
   frame?: 'none' | 'rect' | 'round';
   framePadding?: number;
+  /** Paper-coloured letters with an ink outline (P-touch Editor's "Outline" effect). */
+  outline?: boolean;
+  /** Font name from an imported P-touch Editor file, written back on .lbx export. */
+  sourceFont?: string;
+  /** With a fixed size, make the text smaller if it doesn't fit the box. */
+  shrink?: boolean;
 }
 
 export type ShapeKind = 'rect' | 'roundrect' | 'ellipse' | 'line' | 'triangle' | 'arrow' | 'diamond' | 'frame';
@@ -159,6 +165,8 @@ export interface TableElement extends BaseElement, Omit<TextStyle, 'align' | 'vA
   autoSize: boolean;
   /** Space between the cell edge and its text, in mm. */
   padding: number;
+  /** With a fixed size, make text smaller where it doesn't fit its cell. */
+  shrink?: boolean;
   border: LineStyle;
   borderWidth: number;
   /** Lines between cells. */
