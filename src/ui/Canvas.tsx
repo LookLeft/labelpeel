@@ -93,6 +93,11 @@ export function EditorCanvas() {
   const [editCell, setEditCell] = useState<{ id: string; cell: number } | null>(null);
   const [editTableCell, setEditTableCell] = useState<{ id: string; r: number; c: number } | null>(null);
   const drag = useRef<Drag | null>(null);
+  // Touch screens: fingers currently down (stage px) and an active two-finger pinch.
+  const touches = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ dist: number; mid: { x: number; y: number }; view: typeof view } | null>(null);
+  const viewRef = useRef(view);
+  viewRef.current = view;
 
   const pages = useMemo(() => enumeratePages(doc, new Date(), settings.dateFormat), [doc, settings.dateFormat]);
   const pctx = pages[Math.min(previewIndex, pages.length - 1)] ?? pages[0];
@@ -407,9 +412,28 @@ export function EditorCanvas() {
     return { xs, ys };
   };
 
+  const twoFingers = () => {
+    const [a, b] = [...touches.current.values()];
+    return { dist: Math.max(1, Math.hypot(b.x - a.x, b.y - a.y)), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
+  };
+
   const onPointerDown = (e: React.PointerEvent) => {
     if (editingTextId || editCell || editTableCell) return;
     (e.target as Element).setPointerCapture?.(e.pointerId);
+    if (e.pointerType === 'touch') {
+      const r = wrapRef.current!.getBoundingClientRect();
+      touches.current.set(e.pointerId, { x: e.clientX - r.left, y: e.clientY - r.top });
+      if (touches.current.size >= 2) {
+        // A second finger turns whatever the first one started into a pinch.
+        const st = useEditor.getState();
+        if (st.txStart) st.set({ doc: st.txStart, txStart: null });
+        drag.current = null;
+        setMarquee(null);
+        setSnaps([]);
+        if (touches.current.size === 2) pinch.current = { ...twoFingers(), view: viewRef.current };
+        return;
+      }
+    }
     const p = toMm(e);
     const base = { sx: p.sx, sy: p.sy, mx: p.x, my: p.y, orig: new Map(), boxes: new Map(), panX: view.panX, panY: view.panY, moved: false, additive: e.shiftKey || e.metaKey || e.ctrlKey };
     if (e.button === 1 || space) {
@@ -445,11 +469,29 @@ export function EditorCanvas() {
       drag.current = { ...base, ...snapshot(), mode: 'move' };
     } else {
       if (!base.additive) st.select([]);
-      drag.current = { ...base, mode: 'marquee' };
+      // On touch screens, dragging empty space pans; with a mouse it selects.
+      drag.current = { ...base, mode: e.pointerType === 'touch' ? 'pan' : 'marquee' };
     }
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch' && touches.current.has(e.pointerId)) {
+      const r = wrapRef.current!.getBoundingClientRect();
+      touches.current.set(e.pointerId, { x: e.clientX - r.left, y: e.clientY - r.top });
+      const p0 = pinch.current;
+      if (p0 && touches.current.size >= 2) {
+        // Zoom around the fingers' midpoint, and pan as it moves.
+        const { dist, mid } = twoFingers();
+        const z0 = p0.view.zoom;
+        const zoom = Math.max(0.5, Math.min(80, (z0 * dist) / p0.dist));
+        const wx = (p0.mid.x - p0.view.panX) / z0;
+        const wy = (p0.mid.y - p0.view.panY) / z0;
+        setView({ zoom, panX: mid.x - wx * zoom, panY: mid.y - wy * zoom });
+        return;
+      }
+    }
+    // After a pinch, the finger left on the screen does nothing until lifted.
+    if (pinch.current || touches.current.size >= 2) return;
     const d = drag.current;
     const p = toMm(e);
     if (!d) {
@@ -570,7 +612,12 @@ export function EditorCanvas() {
     st.transient((doc) => ({ ...doc, elements: doc.elements.map((el) => (el.id === id ? ({ ...el, ...patch } as LabelElement) : el)) }));
   };
 
-  const onPointerUp = () => {
+  const onPointerUp = (e?: React.PointerEvent) => {
+    if (e?.pointerType === 'touch') {
+      touches.current.delete(e.pointerId);
+      if (touches.current.size === 0) pinch.current = null;
+      if (pinch.current || touches.current.size) return;
+    }
     const d = drag.current;
     drag.current = null;
     setSnaps([]);
@@ -646,6 +693,33 @@ export function EditorCanvas() {
       if (e.ctrlKey || e.metaKey) e.preventDefault();
     };
     el.addEventListener('wheel', h, { passive: false });
+    // Safari and the Mac app (WebKit) report trackpad pinches as gesture
+    // events rather than ctrl+wheel. iOS fires them for touch pinches too,
+    // which the pointer handling above already covers.
+    type GestureEvt = Event & { scale: number; clientX: number; clientY: number };
+    let gesture: { zoom: number; panX: number; panY: number; sx: number; sy: number } | null = null;
+    const gStart = (ev: Event) => {
+      ev.preventDefault();
+      const g = ev as GestureEvt;
+      const r = el.getBoundingClientRect();
+      gesture = touches.current.size ? null : { ...viewRef.current, sx: g.clientX - r.left, sy: g.clientY - r.top };
+    };
+    const gChange = (ev: Event) => {
+      ev.preventDefault();
+      if (!gesture) return;
+      const g = gesture;
+      const zoom = Math.max(0.5, Math.min(80, g.zoom * (ev as GestureEvt).scale));
+      const wx = (g.sx - g.panX) / g.zoom;
+      const wy = (g.sy - g.panY) / g.zoom;
+      setView({ zoom, panX: g.sx - wx * zoom, panY: g.sy - wy * zoom });
+    };
+    const gEnd = (ev: Event) => {
+      ev.preventDefault();
+      gesture = null;
+    };
+    el.addEventListener('gesturestart', gStart);
+    el.addEventListener('gesturechange', gChange);
+    el.addEventListener('gestureend', gEnd);
     const kd = (e: KeyboardEvent) => {
       if (e.code === 'Space' && !(e.target as HTMLElement).closest('input,textarea,select')) {
         setSpace(true);
@@ -657,6 +731,9 @@ export function EditorCanvas() {
     window.addEventListener('keyup', ku);
     return () => {
       el.removeEventListener('wheel', h);
+      el.removeEventListener('gesturestart', gStart);
+      el.removeEventListener('gesturechange', gChange);
+      el.removeEventListener('gestureend', gEnd);
       window.removeEventListener('keydown', kd);
       window.removeEventListener('keyup', ku);
     };

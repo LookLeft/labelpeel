@@ -153,6 +153,21 @@ export default function App() {
     [],
   );
   useEffect(() => {
+    // Called by the Android app's back button; true means something was closed.
+    (window as unknown as { __labelsmithBack?: () => boolean }).__labelsmithBack = () => {
+      const s = useEditor.getState();
+      if (s.wizardOpen || s.printOpen || s.printerOpen || s.aboutOpen || s.editingTextId) {
+        s.set({ wizardOpen: false, printOpen: false, printerOpen: false, aboutOpen: false, editingTextId: null });
+        return true;
+      }
+      if (s.selection.length) {
+        s.select([]);
+        return true;
+      }
+      return false;
+    };
+  }, []);
+  useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
       if (useEditor.getState().dirty && useEditor.getState().fileName) e.preventDefault();
     };

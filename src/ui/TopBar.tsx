@@ -92,10 +92,10 @@ export function TopBar() {
               const f = await pickFile('.ttf,.otf,.woff,.woff2');
               if (f) loadFontFile(f).then((fam) => st().notify(`Font “${fam}” added`, 'success')).catch((e) => st().notify(e.message, 'error'));
             }} />
-            <Item icon={<TypeIcon size={15} />} label="Use fonts installed on this computer" onClick={() => {
+            {'queryLocalFonts' in window && <Item icon={<TypeIcon size={15} />} label="Use fonts installed on this computer" onClick={() => {
               close();
               loadLocalFonts().then((n) => st().notify(`${n} installed fonts added to the font list`, 'success')).catch((e) => st().notify(e.message, 'error'));
-            }} />
+            }} />}
             <div className="menu-sep" />
             <Item icon={<Monitor size={15} />} label={`${theme === 'system' ? '✓ ' : ''}Theme: system`} onClick={() => { close(); st().setSettings({ theme: 'system' }); }} />
             <Item icon={<Moon size={15} />} label={`${theme === 'dark' ? '✓ ' : ''}Theme: dark`} onClick={() => { close(); st().setSettings({ theme: 'dark' }); }} />
@@ -127,7 +127,7 @@ export function TopBar() {
       <div className="spacer" />
       <button className="btn" onClick={() => st().set({ printerOpen: true })} title="Printer connection">
         <span className={`dot ${transport ? (status?.errors.length ? 'err' : silent ? 'warn' : 'on') : ''}`} />
-        {transport ? (transport.kind === 'usb' ? <Usb size={14} /> : <Bluetooth size={14} />) : <Bluetooth size={14} className="mobile-only" />}
+        {transport ? (transport.kind === 'usb' || transport.label.endsWith('(USB)') ? <Usb size={14} /> : <Bluetooth size={14} />) : <Bluetooth size={14} className="mobile-only" />}
         <span className="btn-label">{transport ? (silent ? 'Printer not responding' : `${detected?.name ?? 'Printer'}${status ? ` · ${status.mediaWidth} mm` : ''}`) : 'Connect printer'}</span>
       </button>
       <button className="btn primary" onClick={() => st().set({ printOpen: true })} title={`Print (${mod}P)`}>

@@ -33,6 +33,9 @@ targets:
       path: Labelsmith/Info.plist
       properties:
         CFBundleDisplayName: Labelsmith
+        # From the build settings, so CI can set the release version.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSRequiresIPhoneOS: true
         UILaunchScreen: {}
         UIApplicationSceneManifest:

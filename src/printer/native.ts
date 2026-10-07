@@ -1,6 +1,6 @@
-// Transport for the native apps (ios/ and android/). Each app hosts this build
+// Transport for the native apps (ios/, macos/ and android/). Each app hosts this build
 // in a web view and exposes a "labelsmith" bridge that talks to the printer
-// over Bluetooth Classic: Apple's External Accessory framework on iOS, an
+// over Bluetooth Classic: External Accessory on iOS, IOBluetooth on macOS, an
 // RFCOMM socket on Android. Bytes cross the bridge as base64.
 
 import type { Transport } from './transport';
@@ -20,6 +20,8 @@ declare global {
     webkit?: { messageHandlers?: { labelsmith?: NativeHandler } };
     LabelsmithAndroid?: AndroidBridge;
     __labelsmithNativeDisconnect?: () => void;
+    /** Set by the macOS app before the page loads (iPads also report a Mac platform). */
+    __labelsmithPlatform?: 'macos';
     __labelsmithReply?: (id: string, result: unknown, error: string | null) => void;
   }
 }
@@ -50,7 +52,12 @@ const handler = (): NativeHandler | undefined => {
 };
 
 export const supportsNative = () => !!handler();
-export const isAndroidApp = () => typeof window !== 'undefined' && !!window.LabelsmithAndroid;
+/** Which native app is hosting the page, if any. */
+export const nativePlatform = (): 'android' | 'macos' | 'ios' | null => {
+  if (!supportsNative()) return null;
+  if (window.LabelsmithAndroid) return 'android';
+  return window.__labelsmithPlatform === 'macos' ? 'macos' : 'ios';
+};
 
 const call = async <T>(op: string, args: Record<string, unknown> = {}): Promise<T> => {
   const h = handler();
@@ -66,11 +73,16 @@ export const toB64 = (data: Uint8Array) => {
 
 const fromB64 = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 
-export async function connectNative(): Promise<Transport> {
-  const info = await call<{ name: string }>('connect');
+/** The macOS and Android apps can also print over USB; iOS can't. */
+export const nativeSupportsUsb = () => nativePlatform() === 'macos' || nativePlatform() === 'android';
+
+export async function connectNative(kind: 'bluetooth' | 'usb' = 'bluetooth'): Promise<Transport> {
+  const info = await call<{ name: string; productId?: number }>('connect', { kind });
   const t: Transport = {
     kind: 'native',
-    label: `${info.name} (Bluetooth)`,
+    label: `${info.name} (${kind === 'usb' ? 'USB' : 'Bluetooth'})`,
+    // Over USB the product ID identifies the model, as with WebUSB.
+    usbProductId: kind === 'usb' ? info.productId : undefined,
     async write(data) {
       await call('write', { data: toB64(data) });
     },

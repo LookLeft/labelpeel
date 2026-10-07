@@ -3,7 +3,7 @@ import { useEditor } from '../state/store';
 import { connect, disconnect, feedAndCut, refreshStatus, usePrinter, effectiveProfile } from '../printer/service';
 import { PROFILES } from '../printer/profiles';
 import { isMac, supportsSerial, supportsUsb } from '../printer/transport';
-import { isAndroidApp, supportsNative } from '../printer/native';
+import { nativePlatform, nativeSupportsUsb, supportsNative } from '../printer/native';
 import { Check, Field, Select } from './fields';
 import { findTape } from '../model/media';
 import { matchLoadedTape } from './actions';
@@ -13,7 +13,7 @@ export function PrinterPanel() {
   const settings = useEditor((s) => s.settings);
   const doc = useEditor((s) => s.doc);
   const st = useEditor.getState;
-  const { transport, connecting, status, responded, detectedProfile, log } = usePrinter();
+  const { transport, connecting, status, responded, detectedProfile, log, busy } = usePrinter();
   if (!open) return null;
   const close = () => st().set({ printerOpen: false });
   const profile = effectiveProfile(settings.profileId);
@@ -59,13 +59,24 @@ export function PrinterPanel() {
               <div className="section-title">Connect</div>
               {supportsNative() ? (
                 <>
-                  <button className="btn block" disabled={connecting} onClick={() => run(() => connect('native'))}>
-                    <Bluetooth size={15} /> Bluetooth printer
-                  </button>
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    <button className="btn block" disabled={connecting} onClick={() => run(() => connect('native'))}>
+                      <Bluetooth size={15} /> Bluetooth printer
+                    </button>
+                    {nativeSupportsUsb() && (
+                      <button className="btn block" disabled={connecting} onClick={() => run(() => connect('native-usb'))}>
+                        <Usb size={15} /> USB cable
+                      </button>
+                    )}
+                  </div>
                   <div className="hint" style={{ marginTop: 12 }}>
-                    {isAndroidApp()
-                      ? 'Pair the printer in Android Settings → Bluetooth first, then tap Bluetooth printer. If it\'s connected to another phone or app, disconnect it there first.'
-                      : 'Turn the printer on. If it isn\'t paired yet, iOS shows a list of nearby printers to pair with. If it\'s connected to another phone or app, disconnect it there first.'}
+                    {
+                      {
+                        android: 'Bluetooth: pair the printer in Android Settings → Bluetooth first, then tap Bluetooth printer. If it\'s connected to another phone or app, disconnect it there first. USB: connect the printer with a cable (most phones need a USB-C OTG adapter), then tap USB cable and allow access.',
+                        macos: 'Bluetooth: turn the printer on and pair it in System Settings → Bluetooth (it\'s normal for it to show “Not Connected” there), then click Bluetooth printer. If it\'s connected to another device or app, disconnect it there first. USB: plug the printer in, switch it on and click USB cable.',
+                        ios: 'Turn the printer on. If it isn\'t paired yet, iOS shows a list of nearby printers to pair with. If it\'s connected to another phone or app, disconnect it there first.',
+                      }[nativePlatform() ?? 'ios']
+                    }
                   </div>
                 </>
               ) : (
@@ -131,10 +142,10 @@ export function PrinterPanel() {
                 </div>
               )}
               <div className="row" style={{ marginBottom: 12 }}>
-                <button className="btn" onClick={() => run(refreshStatus)}>
+                <button className="btn" disabled={busy} onClick={() => run(refreshStatus)}>
                   <RefreshCw size={14} /> Status
                 </button>
-                <button className="btn" onClick={() => run(() => feedAndCut(profile, findTape(doc.media.kind, doc.media.width).code))}>
+                <button className="btn" disabled={busy} onClick={() => run(() => feedAndCut(profile, findTape(doc.media.kind, doc.media.width).code))}>
                   <Scissors size={14} /> Feed &amp; cut
                 </button>
                 {status && (

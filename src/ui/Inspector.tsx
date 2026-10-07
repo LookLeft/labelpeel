@@ -609,7 +609,8 @@ function alignTo(kind: 'left' | 'hcenter' | 'right' | 'top' | 'vmiddle' | 'botto
   const doc = s.doc;
   const pctx = previewContext(doc, s.previewIndex, s.settings.dateFormat);
   const layout = computeLayout(doc, pctx);
-  const pr = printableRect(doc, layout.length);
+  const profile = effectiveProfile(s.settings.profileId);
+  const pr = printableRect(doc, layout.length, profile.dpi, profile.headPins);
   const [W] = designSize(doc, layout.length);
   const els = doc.elements.filter((e) => ids.includes(e.id));
   // Several elements align to their common bounds; one aligns to the label.

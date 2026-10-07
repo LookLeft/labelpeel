@@ -97,6 +97,15 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    @SuppressWarnings("deprecation")
+    public void onBackPressed() {
+        // Close the page's open dialog or selection first; leave the app only when there's nothing to close.
+        webView.evaluateJavascript("!!(window.__labelsmithBack && window.__labelsmithBack())", (handled) -> {
+            if (!"true".equals(handled)) super.onBackPressed();
+        });
+    }
+
+    @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         webView.saveState(outState);

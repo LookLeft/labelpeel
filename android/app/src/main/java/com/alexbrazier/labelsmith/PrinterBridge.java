@@ -10,7 +10,16 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.hardware.usb.UsbConstants;
+import android.hardware.usb.UsbDevice;
+import android.hardware.usb.UsbDeviceConnection;
+import android.hardware.usb.UsbEndpoint;
+import android.hardware.usb.UsbInterface;
+import android.hardware.usb.UsbManager;
 import android.os.Build;
 import android.provider.Settings;
 import android.util.Base64;
@@ -32,7 +41,8 @@ import java.util.concurrent.Executors;
 
 /**
  * The page's "labelsmith" printer bridge on Android, matching the iOS app's
- * messages: {op: "connect"} → {name}, {op: "write", data: base64},
+ * messages: {op: "connect", kind: "bluetooth" | "usb"} → {name, productId?},
+ * {op: "write", data: base64},
  * {op: "read", timeoutMs} → base64, {op: "close"}. Android talks to Bluetooth
  * Classic printers like the PT-E560BT over an RFCOMM socket using the Serial
  * Port Profile. Replies go back through window.__labelsmithReply(id, result, error).
@@ -52,6 +62,13 @@ public class PrinterBridge {
     private final ByteArrayOutputStream inBuffer = new ByteArrayOutputStream();
     private String permissionReplyId;
 
+    // USB: a Brother printer's USB printer-class interface.
+    private static final int BROTHER_VENDOR_ID = 0x04f9;
+    private static final String ACTION_USB_PERMISSION = "com.alexbrazier.labelsmith.USB_PERMISSION";
+    private UsbDeviceConnection usbConnection;
+    private UsbInterface usbInterface;
+    private UsbEndpoint usbOut;
+
     PrinterBridge(Activity activity, WebView webView) {
         this.activity = activity;
         this.webView = webView;
@@ -63,7 +80,8 @@ public class PrinterBridge {
             JSONObject msg = new JSONObject(json);
             switch (msg.optString("op")) {
                 case "connect":
-                    connect(id);
+                    if ("usb".equals(msg.optString("kind"))) connectUsb(id);
+                    else connect(id);
                     break;
                 case "write":
                     byte[] data = Base64.decode(msg.getString("data"), Base64.DEFAULT);
@@ -94,7 +112,101 @@ public class PrinterBridge {
         ((MainActivity) activity).saveFile(name, mime, base64);
     }
 
-    // ---- Connect
+    // ---- Connect (USB)
+
+    private void connectUsb(String id) {
+        UsbManager manager = (UsbManager) activity.getSystemService(Context.USB_SERVICE);
+        UsbDevice device = null;
+        if (manager != null) {
+            for (UsbDevice d : manager.getDeviceList().values()) {
+                if (d.getVendorId() == BROTHER_VENDOR_ID && printerInterface(d) != null) {
+                    device = d;
+                    break;
+                }
+            }
+        }
+        if (device == null) {
+            reply(id, null, "No Brother printer found on USB. Connect it with a USB cable (a USB-C OTG adapter on most phones) and switch it on.");
+            return;
+        }
+        if (manager.hasPermission(device)) {
+            UsbDevice d = device;
+            worker.execute(() -> openUsb(id, manager, d));
+            return;
+        }
+        // Ask Android for access to the printer; the answer comes back as a broadcast.
+        UsbDevice target = device;
+        BroadcastReceiver receiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                activity.unregisterReceiver(this);
+                if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) worker.execute(() -> openUsb(id, manager, target));
+                else reply(id, null, "USB access to the printer was not allowed.");
+            }
+        };
+        IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
+        if (Build.VERSION.SDK_INT >= 33) activity.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        else activity.registerReceiver(receiver, filter);
+        Intent intent = new Intent(ACTION_USB_PERMISSION).setPackage(activity.getPackageName());
+        int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ? PendingIntent.FLAG_MUTABLE : 0;
+        manager.requestPermission(device, PendingIntent.getBroadcast(activity, 0, intent, flags));
+    }
+
+    private static UsbInterface printerInterface(UsbDevice device) {
+        for (int i = 0; i < device.getInterfaceCount(); i++) {
+            UsbInterface iface = device.getInterface(i);
+            if (iface.getInterfaceClass() == UsbConstants.USB_CLASS_PRINTER) return iface;
+        }
+        return null;
+    }
+
+    private void openUsb(String id, UsbManager manager, UsbDevice device) {
+        close();
+        UsbInterface iface = printerInterface(device);
+        UsbEndpoint outEp = null;
+        UsbEndpoint inEp = null;
+        for (int i = 0; iface != null && i < iface.getEndpointCount(); i++) {
+            UsbEndpoint ep = iface.getEndpoint(i);
+            if (ep.getType() != UsbConstants.USB_ENDPOINT_XFER_BULK) continue;
+            if (ep.getDirection() == UsbConstants.USB_DIR_OUT) outEp = ep;
+            else inEp = ep;
+        }
+        UsbDeviceConnection conn = outEp == null ? null : manager.openDevice(device);
+        if (conn == null || !conn.claimInterface(iface, true)) {
+            if (conn != null) conn.close();
+            reply(id, null, "Could not open the printer on USB. Unplug it, plug it back in and try again.");
+            return;
+        }
+        usbConnection = conn;
+        usbInterface = iface;
+        usbOut = outEp;
+        if (inEp != null) startUsbReader(conn, inEp);
+        try {
+            String name = device.getProductName();
+            reply(id, new JSONObject().put("name", name == null ? "Brother printer" : name).put("productId", device.getProductId()).toString(), null);
+        } catch (JSONException e) {
+            reply(id, "{}", null);
+        }
+    }
+
+    private void startUsbReader(UsbDeviceConnection conn, UsbEndpoint in) {
+        reader = new Thread(() -> {
+            byte[] buf = new byte[Math.max(64, in.getMaxPacketSize())];
+            while (usbConnection == conn) {
+                // Short timeouts so the loop notices when the connection closes.
+                int n = conn.bulkTransfer(in, buf, buf.length, 200);
+                if (n > 0) {
+                    synchronized (inBuffer) {
+                        inBuffer.write(buf, 0, n);
+                        inBuffer.notifyAll();
+                    }
+                }
+            }
+        });
+        reader.start();
+    }
+
+    // ---- Connect (Bluetooth)
 
     private void connect(String id) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
@@ -192,7 +304,7 @@ public class PrinterBridge {
             }
             if (socket != null) {
                 close();
-                activity.runOnUiThread(() -> webView.evaluateJavascript("window.__labelsmithNativeDisconnect && window.__labelsmithNativeDisconnect()", null));
+                notifyDisconnect();
             }
         });
         reader.start();
@@ -201,6 +313,21 @@ public class PrinterBridge {
     // ---- Write / read
 
     private void write(String id, byte[] data) {
+        UsbDeviceConnection usb = usbConnection;
+        if (usb != null) {
+            for (int offset = 0; offset < data.length; ) {
+                int sent = usb.bulkTransfer(usbOut, data, offset, Math.min(16384, data.length - offset), 10000);
+                if (sent <= 0) {
+                    close();
+                    notifyDisconnect();
+                    reply(id, null, "USB transfer failed. Check the cable and that the printer is on.");
+                    return;
+                }
+                offset += sent;
+            }
+            reply(id, "true", null);
+            return;
+        }
         if (out == null) {
             reply(id, null, "Printer not connected.");
             return;
@@ -219,7 +346,7 @@ public class PrinterBridge {
         long deadline = System.currentTimeMillis() + timeoutMs;
         byte[] bytes;
         synchronized (inBuffer) {
-            while (inBuffer.size() < 32 && socket != null) {
+            while (inBuffer.size() < 32 && (socket != null || usbConnection != null)) {
                 long left = deadline - System.currentTimeMillis();
                 if (left <= 0) break;
                 try {
@@ -237,6 +364,12 @@ public class PrinterBridge {
     // ---- Close
 
     void close() {
+        UsbDeviceConnection usb = usbConnection;
+        usbConnection = null;
+        if (usb != null) {
+            usb.releaseInterface(usbInterface);
+            usb.close();
+        }
         BluetoothSocket s = socket;
         socket = null;
         out = null;
@@ -253,6 +386,10 @@ public class PrinterBridge {
         } catch (IOException ignored) {
             // Already closed.
         }
+    }
+
+    private void notifyDisconnect() {
+        activity.runOnUiThread(() -> webView.evaluateJavascript("window.__labelsmithNativeDisconnect && window.__labelsmithNativeDisconnect()", null));
     }
 
     /** Resolve the page's promise. `result` is a JSON literal. */

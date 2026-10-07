@@ -24,6 +24,10 @@ Actions tab, as the `labelsmith-android` artifact (a zip containing the APK).
 The printer accepts one Bluetooth connection at a time, so disconnect it from
 other phones and apps first.
 
+For **USB**, connect the printer with a cable (most phones need a USB-C OTG
+adapter or cable), switch it on, tap **USB cable** and allow access when
+Android asks.
+
 ## Building locally
 
 Needs JDK 17, Gradle 8.11+ (`brew install openjdk@17 gradle`) and the Android

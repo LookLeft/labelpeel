@@ -240,6 +240,11 @@ textarea {
   color: var(--text-3);
   font-size: 11px;
 }
+@media (hover: none) and (pointer: coarse) {
+  .menu-item .kbd {
+    display: none;
+  }
+}
 .menu-sep {
   height: 1px;
   background: var(--line);

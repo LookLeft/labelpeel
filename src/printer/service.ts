@@ -48,14 +48,14 @@ export const usePrinter = create<PrinterState>((set, get) => ({
 
 const log = (level: LogLine['level'], text: string) => usePrinter.getState().addLog(level, text);
 
-export async function connect(kind: 'usb' | 'bluetooth' | 'serial' | 'native'): Promise<Transport> {
+export async function connect(kind: 'usb' | 'bluetooth' | 'serial' | 'native' | 'native-usb'): Promise<Transport> {
   const st = usePrinter.getState();
   if (st.transport) await disconnect();
   usePrinter.setState({ connecting: true });
   try {
     const t =
-      kind === 'native'
-        ? await connectNative()
+      kind === 'native' || kind === 'native-usb'
+        ? await connectNative(kind === 'native-usb' ? 'usb' : 'bluetooth')
         : kind === 'usb'
           ? await connectUsb()
           : await connectSerial({ bluetoothOnly: kind === 'bluetooth', log: (msg) => log('info', msg) });

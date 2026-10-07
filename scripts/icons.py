@@ -7,6 +7,7 @@ own corners, with the white outside them made transparent.
 
 Run from the repo root after changing the artwork: python3 scripts/icons.py
 """
+import json
 from pathlib import Path
 
 from PIL import Image
@@ -16,6 +17,7 @@ SRC = ROOT / "assets" / "icon.png"
 PUBLIC = ROOT / "public"
 IOS_ICONSET = ROOT / "ios" / "Labelsmith" / "Assets.xcassets" / "AppIcon.appiconset"
 ANDROID_RES = ROOT / "android" / "app" / "src" / "main" / "res" / "drawable-nodpi"
+MAC_ICONSET = ROOT / "macos" / "Labelsmith" / "Assets.xcassets" / "AppIcon.appiconset"
 
 # The corner curves reach about 80 px in along the diagonal of the 1254 px
 # source; cropping 96 px from each side leaves only the blue background.
@@ -107,9 +109,22 @@ def main() -> None:
     android_adaptive(full_bleed(src)).save(ANDROID_RES / "ic_launcher_background.png", optimize=True)
 
     rounded = transparent_corners(src)
+
+    # macOS icons keep their own rounded shape inside Apple's 1024 px grid,
+    # with the shape 824 px across.
+    MAC_ICONSET.mkdir(parents=True, exist_ok=True)
+    mac = Image.new("RGBA", (1024, 1024), (0, 0, 0, 0))
+    mac.paste(rounded.resize((824, 824), Image.LANCZOS), (100, 100))
+    images = []
+    for pt in (16, 32, 128, 256, 512):
+        for scale in (1, 2):
+            name = f"icon_{pt}x{pt}{'@2x' if scale == 2 else ''}.png"
+            mac.resize((pt * scale, pt * scale), Image.LANCZOS).save(MAC_ICONSET / name, optimize=True)
+            images.append({"filename": name, "idiom": "mac", "scale": f"{scale}x", "size": f"{pt}x{pt}"})
+    (MAC_ICONSET / "Contents.json").write_text(json.dumps({"images": images, "info": {"author": "xcode", "version": 1}}, indent=2) + "\n")
     for size in (32, 192, 512):
         rounded.resize((size, size), Image.LANCZOS).save(PUBLIC / f"icon-{size}.png", optimize=True)
-    print("Icons written to public/,", IOS_ICONSET.relative_to(ROOT), "and", ANDROID_RES.relative_to(ROOT))
+    print("Icons written to public/,", IOS_ICONSET.relative_to(ROOT), ",", MAC_ICONSET.relative_to(ROOT), "and", ANDROID_RES.relative_to(ROOT))
 
 
 if __name__ == "__main__":

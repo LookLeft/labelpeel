@@ -14,12 +14,13 @@ Store would also need Brother's MFi approval for the accessory protocol.
 1. Install Xcode and XcodeGen: `brew install xcodegen`
 2. From the repo root: `npm install`, then `ios/build-web.sh`
    (builds the web app, copies it to `ios/Web`, generates `ios/Labelsmith.xcodeproj`).
-3. Open `ios/Labelsmith.xcodeproj`. Under the Labelsmith target's
-   Signing & Capabilities, pick your team. If the bundle ID is taken, change it.
+3. Open `ios/Labelsmith.xcodeproj`. The signing team is set in `ios/project.yml`
+   (`DEVELOPMENT_TEAM`); if you're building from a fork, change it there (and
+   the bundle ID if it's taken), then run `ios/build-web.sh` again.
 4. Plug in your iPhone (Developer Mode on), choose it as the run destination, and press Run.
    The first time, trust the developer certificate in Settings > General > VPN & Device Management.
 
-With a free Apple account the app stops opening after 7 days; press Run again to reinstall.
+Builds installed from Xcode stop opening after 7 days with a free Apple account, or a year with a paid developer account; press Run again to reinstall.
 
 ## Printing
 
