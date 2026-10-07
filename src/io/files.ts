@@ -1,6 +1,7 @@
 import Papa from 'papaparse';
 import type { DataSource, LabelDoc } from '../model/types';
 import { migrate } from '../state/store';
+import { toB64 } from '../printer/native';
 
 export const FILE_EXT = '.labelsmith';
 const MIME = 'application/json';
@@ -21,7 +22,14 @@ export function parseDoc(text: string): LabelDoc {
 }
 
 export function download(name: string, data: BlobPart | Uint8Array, type = 'application/octet-stream') {
-  const url = URL.createObjectURL(new Blob([data as BlobPart], { type }));
+  const blob = new Blob([data as BlobPart], { type });
+  // The Android app's web view can't download in-page files; it shows a save dialog instead.
+  const android = window.LabelsmithAndroid;
+  if (android?.saveFile) {
+    blob.arrayBuffer().then((buf) => android.saveFile!(name, type, toB64(new Uint8Array(buf))));
+    return;
+  }
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = name;

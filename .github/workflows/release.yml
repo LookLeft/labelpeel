@@ -1,0 +1,53 @@
+name: Release
+
+# Run from the Actions tab ("Run workflow") with a version number, or push a
+# tag like v1.2.0. Builds the Android app and publishes a GitHub release with
+# the installable APK attached.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version, e.g. 1.2.0 (tagged as v1.2.0)
+        required: true
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      name: ${{ steps.v.outputs.name }}
+    steps:
+      - id: v
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then V="${GITHUB_REF_NAME#v}"; else V="${{ inputs.version }}"; V="${V#v}"; fi
+          echo "name=$V" >> "$GITHUB_OUTPUT"
+
+  android:
+    needs: version
+    uses: ./.github/workflows/android.yml
+    with:
+      version: ${{ needs.version.outputs.name }}
+    secrets: inherit
+
+  release:
+    needs: [version, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: labelsmith-android
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.name }}
+        run: |
+          gh release create "v$VERSION" labelsmith-*.apk \
+            --title "Labelsmith $VERSION" \
+            --target "${{ github.sha }}" \
+            --generate-notes \
+            --notes "Android: download labelsmith-$VERSION.apk on your phone and open it to install (allow installing from your browser or Files app when asked)."

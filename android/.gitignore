@@ -1,0 +1,7 @@
+.gradle/
+build/
+local.properties
+*.keystore
+*.jks
+# Copied from ../dist by build-web.sh
+app/src/main/assets/web/

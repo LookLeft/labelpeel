@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "assets" / "icon.png"
 PUBLIC = ROOT / "public"
 IOS_ICONSET = ROOT / "ios" / "Labelsmith" / "Assets.xcassets" / "AppIcon.appiconset"
+ANDROID_RES = ROOT / "android" / "app" / "src" / "main" / "res" / "drawable-nodpi"
 
 # The corner curves reach about 80 px in along the diagonal of the 1254 px
 # source; cropping 96 px from each side leaves only the blue background.
@@ -25,6 +26,29 @@ def full_bleed(src: Image.Image) -> Image.Image:
     w, h = src.size
     d = round(w * CORNER_INSET)
     return src.crop((d, d, w - d, h - d))
+
+
+def android_adaptive(art: Image.Image, size: int = 432) -> Image.Image:
+    """Adaptive icon layer (108 dp, shown at 432 px). Launchers crop it to a
+    shape inside the middle 72 dp, so the artwork is shrunk to keep the letter
+    in that zone, over a background extended from the artwork's own edges."""
+    art = art.convert("RGB")
+    # The artwork's background is a vertical gradient: stretch its left edge
+    # column across the canvas, then feather the artwork onto it.
+    column = art.crop((0, 0, 1, art.height)).resize((1, size), Image.BILINEAR)
+    canvas = column.resize((size, size), Image.NEAREST)
+    inner = round(size * 0.64)
+    scaled = art.resize((inner, inner), Image.LANCZOS)
+    mask = Image.new("L", (inner, inner), 0)
+    feather = round(inner * 0.08)
+    px = mask.load()
+    for y in range(inner):
+        for x in range(inner):
+            d = min(x, y, inner - 1 - x, inner - 1 - y)
+            px[x, y] = 255 if d >= feather else round(255 * d / feather)
+    off = (size - inner) // 2
+    canvas.paste(scaled, (off, off), mask)
+    return canvas
 
 
 def transparent_corners(src: Image.Image) -> Image.Image:
@@ -79,10 +103,13 @@ def main() -> None:
     # Home-screen icon for Safari's "Add to Home Screen" (iOS rounds it).
     full_bleed(src).resize((180, 180), Image.LANCZOS).save(PUBLIC / "apple-touch-icon.png")
 
+    ANDROID_RES.mkdir(parents=True, exist_ok=True)
+    android_adaptive(full_bleed(src)).save(ANDROID_RES / "ic_launcher_background.png", optimize=True)
+
     rounded = transparent_corners(src)
     for size in (32, 192, 512):
         rounded.resize((size, size), Image.LANCZOS).save(PUBLIC / f"icon-{size}.png", optimize=True)
-    print("Icons written to public/ and", IOS_ICONSET.relative_to(ROOT))
+    print("Icons written to public/,", IOS_ICONSET.relative_to(ROOT), "and", ANDROID_RES.relative_to(ROOT))
 
 
 if __name__ == "__main__":

@@ -1,8 +1,7 @@
-// Transport for the iOS wrapper app (ios/). The app hosts this build in a
-// WKWebView and exposes a "labelsmith" message handler that talks to the printer
-// through Apple's External Accessory framework, which is the only way iOS
-// lets an app use a Bluetooth Classic printer. Bytes cross the bridge as
-// base64.
+// Transport for the native apps (ios/ and android/). Each app hosts this build
+// in a web view and exposes a "labelsmith" bridge that talks to the printer
+// over Bluetooth Classic: Apple's External Accessory framework on iOS, an
+// RFCOMM socket on Android. Bytes cross the bridge as base64.
 
 import type { Transport } from './transport';
 
@@ -10,24 +9,56 @@ interface NativeHandler {
   postMessage(msg: unknown): Promise<unknown>;
 }
 
+/** Android's JavaScript interface: replies arrive via window.__labelsmithReply. */
+interface AndroidBridge {
+  postMessage(json: string, id: string): void;
+  saveFile?(name: string, mime: string, base64: string): void;
+}
+
 declare global {
   interface Window {
     webkit?: { messageHandlers?: { labelsmith?: NativeHandler } };
+    LabelsmithAndroid?: AndroidBridge;
     __labelsmithNativeDisconnect?: () => void;
+    __labelsmithReply?: (id: string, result: unknown, error: string | null) => void;
   }
 }
 
-const handler = () => (typeof window !== 'undefined' ? window.webkit?.messageHandlers?.labelsmith : undefined);
+const pending = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
+let nextId = 0;
+
+const handler = (): NativeHandler | undefined => {
+  if (typeof window === 'undefined') return undefined;
+  const ios = window.webkit?.messageHandlers?.labelsmith;
+  if (ios) return ios;
+  const android = window.LabelsmithAndroid;
+  if (!android) return undefined;
+  window.__labelsmithReply ??= (id, result, error) => {
+    const p = pending.get(id);
+    pending.delete(id);
+    if (error) p?.reject(new Error(error));
+    else p?.resolve(result);
+  };
+  return {
+    postMessage: (msg) =>
+      new Promise((resolve, reject) => {
+        const id = String(++nextId);
+        pending.set(id, { resolve, reject });
+        android.postMessage(JSON.stringify(msg), id);
+      }),
+  };
+};
 
 export const supportsNative = () => !!handler();
+export const isAndroidApp = () => typeof window !== 'undefined' && !!window.LabelsmithAndroid;
 
 const call = async <T>(op: string, args: Record<string, unknown> = {}): Promise<T> => {
   const h = handler();
-  if (!h) throw new Error('The iOS printer bridge is not available.');
+  if (!h) throw new Error('The printer bridge is not available.');
   return (await h.postMessage({ op, ...args })) as T;
 };
 
-const toB64 = (data: Uint8Array) => {
+export const toB64 = (data: Uint8Array) => {
   let s = '';
   for (let i = 0; i < data.length; i += 0x8000) s += String.fromCharCode(...data.subarray(i, i + 0x8000));
   return btoa(s);

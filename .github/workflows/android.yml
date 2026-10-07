@@ -1,0 +1,79 @@
+name: Android
+
+# Builds the Android app on every push and pull request (the APK is attached
+# to the run as an artifact), and is reused by the release workflow.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        description: Version name, e.g. 1.2.0
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    env:
+      # Release signing, from repository secrets. Without them the APK is
+      # signed with a throwaway debug key: it installs, but can't update a
+      # copy signed with a different key.
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - run: npm ci
+      - run: npm test
+      - name: Build the web app into the Android assets
+        run: android/build-web.sh
+
+      - name: Version
+        id: version
+        run: |
+          VERSION="${{ inputs.version }}"
+          if [ -z "$VERSION" ]; then VERSION="$(node -p "require('./package.json').version")"; fi
+          echo "name=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Signing key
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+      - name: No signing key
+        if: env.ANDROID_KEYSTORE_BASE64 == ''
+        run: echo "::warning::ANDROID_KEYSTORE_BASE64 is not set, so the APK is signed with a debug key. Updates will need an uninstall first."
+
+      - name: Build APK
+        working-directory: android
+        # Minutes since 1970: always increases, across CI and release builds,
+        # so a newer APK can always be installed over an older one.
+        run: gradle assembleRelease -PversionName="${{ steps.version.outputs.name }}" -PversionCode="$(( $(date +%s) / 60 ))"
+
+      - name: Name the APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk "labelsmith-${{ steps.version.outputs.name }}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: labelsmith-android
+          path: labelsmith-*.apk
+          if-no-files-found: error

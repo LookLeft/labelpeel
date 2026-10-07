@@ -3,7 +3,7 @@ import { useEditor } from '../state/store';
 import { connect, disconnect, feedAndCut, refreshStatus, usePrinter, effectiveProfile } from '../printer/service';
 import { PROFILES } from '../printer/profiles';
 import { isMac, supportsSerial, supportsUsb } from '../printer/transport';
-import { supportsNative } from '../printer/native';
+import { isAndroidApp, supportsNative } from '../printer/native';
 import { Check, Field, Select } from './fields';
 import { findTape } from '../model/media';
 import { matchLoadedTape } from './actions';
@@ -63,7 +63,9 @@ export function PrinterPanel() {
                     <Bluetooth size={15} /> Bluetooth printer
                   </button>
                   <div className="hint" style={{ marginTop: 12 }}>
-                    Turn the printer on. If it isn't paired yet, iOS shows a list of nearby printers to pair with. If it's connected to another phone or app, disconnect it there first.
+                    {isAndroidApp()
+                      ? 'Pair the printer in Android Settings → Bluetooth first, then tap Bluetooth printer. If it\'s connected to another phone or app, disconnect it there first.'
+                      : 'Turn the printer on. If it isn\'t paired yet, iOS shows a list of nearby printers to pair with. If it\'s connected to another phone or app, disconnect it there first.'}
                   </div>
                 </>
               ) : (

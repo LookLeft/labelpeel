@@ -4,3 +4,7 @@ dist
 .DS_Store
 tsconfig.tsbuildinfo
 public/licenses.txt
+
+# Local secrets (Android signing key etc.), never committed
+secrets/
+.env
