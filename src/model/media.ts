@@ -19,8 +19,8 @@ export interface TapeSize {
   label: string;
 }
 
-// Print areas from the Brother raster command references (as also used by
-// ptouch-print / ptouch-rs). Narrow heads clamp to their pin count.
+// Print areas from the Brother raster command references. Narrow heads clamp
+// to their pin count.
 export const TZE_SIZES: TapeSize[] = [
   { width: 3.5, code: 4, dots180: 24, dots360: 48, label: '3.5 mm' },
   { width: 6, code: 6, dots180: 32, dots360: 64, label: '6 mm' },

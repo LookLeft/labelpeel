@@ -152,10 +152,10 @@ export function PrinterPanel() {
           <Check
             checked={settings.minimalProtocol}
             onChange={(minimalProtocol) => st().setSettings({ minimalProtocol })}
-            label="Minimal command set (ptouch-print compatible)"
+            label="Minimal command set"
           />
           <div className="hint" style={{ marginBottom: 10 }}>
-            Sends only the command sequence verified with ptouch-print. Try this if labels don't print; cut and half-cut options are then left to the printer's defaults.
+            Sends only a basic command sequence known to work on these printers. Try this if labels don't print; cut and half-cut options are then left to the printer's defaults.
           </div>
           <Field label="Date format for {{date}}">
             <Select

@@ -1,6 +1,6 @@
-// Printer model table. Capability flags follow ptouch-print / ptouch-rs, which
-// were verified against real hardware; extra capabilities (half cut, HSe/FLe
-// media) come from Brother's published specifications.
+// Printer model table. Capability flags follow configurations known to work
+// on real hardware; extra capabilities (half cut, HSe/FLe media) come from
+// Brother's published specifications.
 
 import type { MediaKind } from '../model/types';
 
@@ -60,7 +60,7 @@ export const PROFILES: PrinterProfile[] = [
     packbits: false,
     halfCut: true,
     bluetooth: true,
-    notes: 'Verified framing from ptouch-print (D460BT family).',
+    notes: 'Command framing verified on hardware (D460BT family).',
   },
   { ...base, id: 'pt-e510', name: 'PT-E510', pids: [0x2202], media: ['tze', 'hse'], p700Init: true, infoCmd: true, d460bt: true, packbits: false, halfCut: true },
   { ...base, id: 'pt-e310bt', name: 'PT-E310BT', pids: [0x2201], maxTape: 18, media: ['tze', 'hse'], p700Init: true, infoCmd: true, d460bt: true, packbits: false, bluetooth: true },
@@ -80,7 +80,7 @@ export const PROFILES: PrinterProfile[] = [
     media: ['tze', 'hse'],
     p700Init: true,
     halfCut: true,
-    unsupported: 'Raster mode is reported unsupported over USB by ptouch-print. Try the P700-class settings at your own risk.',
+    unsupported: 'Raster mode is reported not to work over USB on this model. Try the P700-class settings at your own risk.',
   },
   { ...base, id: 'pt-e500', name: 'PT-E500', pids: [0x205f], media: ['tze', 'hse'] },
   { ...base, id: 'pt-h500', name: 'PT-H500', pids: [0x205e] },

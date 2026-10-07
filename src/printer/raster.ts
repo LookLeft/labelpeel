@@ -15,7 +15,7 @@ export interface Bitmap {
 
 /**
  * Convert a bitmap to raster lines. Row 0 (top of the label as designed)
- * maps to the highest head pin, matching ptouch-print:
+ * maps to the highest head pin:
  *   pixel = offset + (height - 1 - row)
  *   line[(bytes - 1) - (pixel >> 3)] |= 1 << (pixel & 7)
  * The printable band is centred on the head.

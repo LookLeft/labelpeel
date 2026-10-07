@@ -9,7 +9,7 @@ const SETTINGS_KEY = 'labelsmith:settings';
 
 export interface Settings {
   profileId: string;
-  /** Send only ptouch-print's verified command set (no cut/mode commands). */
+  /** Send only the known-good minimal command set (no cut/mode commands). */
   minimalProtocol: boolean;
   dateFormat: string;
   theme: 'dark' | 'light' | 'system';

@@ -1,8 +1,8 @@
 // Brother P-touch raster command protocol.
 //
 // Command set per Brother's "Software Developer's Manual — Raster Command
-// Reference" (PT-E550W / P750W / P710BT / E560BT generation) cross-checked
-// against ptouch-print and ptouch-rs, which were verified on hardware:
+// Reference" (PT-E550W / P750W / P710BT / E560BT generation), cross-checked
+// against byte streams known to work on real printers:
 //
 //   invalidate     100 × 0x00
 //   ESC @          initialise
@@ -18,9 +18,9 @@
 //     G len data   raster line, Z = blank line
 //     0x0C         print (more pages follow), 0x1A print + feed (last page)
 //
-// For the D460BT family (PT-E560BT, E510, E310BT, D610BT, D460BT) ptouch-print
-// sends "ESC i d 01 00" + "M 00" right after ESC i z, and n9 = 0x02. The
-// "minimal" mode below reproduces that verified byte stream exactly.
+// For the D460BT family (PT-E560BT, E510, E310BT, D610BT, D460BT) the
+// known-good stream sends "ESC i d 01 00" + "M 00" right after ESC i z, with
+// n9 = 0x02. The "minimal" mode below reproduces that byte stream exactly.
 
 import type { PrinterProfile } from './profiles';
 import { lineBytes } from './profiles';
@@ -43,7 +43,7 @@ export interface JobOptions {
   mirror: boolean;
   /** Special tape mode: disables all cutting (fabric, some HSe). */
   noCut?: boolean;
-  /** Only send what ptouch-print sends (verified minimal sequence). */
+  /** Only send the known-good minimal sequence (no cut/mode commands). */
   minimal: boolean;
 }
 
@@ -56,7 +56,7 @@ export const cmdRasterMode = (p: PrinterProfile) =>
   p.p700Init ? new Uint8Array([ESC, 0x69, 0x61, 0x01]) : new Uint8Array([ESC, 0x69, 0x52, 0x01]);
 
 export function cmdPrintInfo(widthMm: number, rasterLines: number, n9: number, mediaType = 0): Uint8Array {
-  // n1 valid flags: 0x00 matches the verified ptouch-print stream; the printer
+  // n1 valid flags: 0x00 matches the known-good minimal stream; the printer
   // then uses the installed media. n2 media type, n3 width, n4 length (0).
   return new Uint8Array([
     ESC, 0x69, 0x7a,
@@ -80,7 +80,7 @@ export const cmdAdvancedMode = (halfCut: boolean, noChain: boolean, specialTape:
   new Uint8Array([ESC, 0x69, 0x4b, (halfCut ? 0x04 : 0) | (noChain ? 0x08 : 0) | (specialTape ? 0x10 : 0)]);
 export const cmdMargin = (dots: number) => new Uint8Array([ESC, 0x69, 0x64, dots & 0xff, (dots >> 8) & 0xff]);
 export const cmdCompression = (packbits: boolean) => new Uint8Array([0x4d, packbits ? 0x02 : 0x00]);
-/** ptouch-print's D460BT chain command: ESC i K 00 + NUL. */
+/** D460BT-family chain command: ESC i K 00 + NUL. */
 export const cmdD460btChain = () => new Uint8Array([ESC, 0x69, 0x4b, 0x00, 0x00]);
 export const cmdPrint = () => new Uint8Array([0x0c]);
 export const cmdPrintFeed = () => new Uint8Array([0x1a]);
@@ -165,11 +165,11 @@ export function buildJob(pages: RasterPage[], profile: PrinterProfile, opts: Job
     const last = idx === pages.length - 1;
     const first = idx === 0;
     const header: Uint8Array[] = [];
-    // In minimal mode every page is a self-contained ptouch-print job.
+    // In minimal mode every page is a self-contained job.
     if (opts.minimal && !first) header.push(cmdRasterMode(profile));
     if (profile.infoCmd) {
-      // n9: 0 = first page, 1 = middle, 2 = last. ptouch-print always sends 2
-      // for single-page jobs on D460BT models; a single page is first and last.
+      // n9: 0 = first page, 1 = middle, 2 = last. The minimal stream always
+      // sends 2 on D460BT models; a single page is first and last.
       const n9 = opts.minimal ? (profile.d460bt ? 2 : 0) : last ? 2 : first ? 0 : 1;
       header.push(cmdPrintInfo(opts.mediaWidth, page.lines.length, n9, opts.minimal ? 0 : opts.mediaType ?? 0));
     }

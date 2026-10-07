@@ -42,7 +42,7 @@ describe('raster mapping', () => {
 });
 
 describe('PT-E560BT minimal job', () => {
-  it('matches the ptouch-print byte stream', () => {
+  it('matches the known-good minimal byte stream', () => {
     const line = new Uint8Array(lineBytes(e560));
     line[5] = 0xaa;
     const out = concat(buildJob([{ lines: [line, line] }], e560, {

@@ -36,8 +36,8 @@ export function AboutDialog() {
           <p style={{ marginTop: 0 }}>Design and print labels on Brother P-touch compatible label printers over Bluetooth or USB.</p>
           <div className="callout">{TRADEMARK_NOTICE}</div>
           <p className="hint">
-            Printer protocol details are based on Brother's published raster command reference and the open-source projects ptouch-print, ptouch-rs and
-            ptouch-webapp. Brother's .lbx format is imported on a best-effort basis for interoperability.
+            Printer protocol details are based on Brother's published raster command reference. Brother's .lbx format is imported on a
+            best-effort basis for interoperability.
           </p>
           <button className="btn" onClick={() => setShowLicenses(!showLicenses)}>
             {showLicenses ? 'Hide' : 'Show'} open-source licences
