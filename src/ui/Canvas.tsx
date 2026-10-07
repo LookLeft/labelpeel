@@ -7,7 +7,8 @@ import { CLEAR_LAMINATE, computeLayout, renderLabel, renderPrintBitmap, type Box
 import { onAssetsChanged } from '../render/assets';
 import { onFontsChanged } from '../render/fonts';
 import { effectiveProfile } from '../printer/service';
-import type { GridElement, LabelElement } from '../model/types';
+import type { GridElement, LabelElement, TableElement } from '../model/types';
+import { areaAt, cellAtPoint, tableEdges } from '../model/table';
 
 type Handle = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw' | 'rot';
 
@@ -78,6 +79,7 @@ export function EditorCanvas() {
   const [snaps, setSnaps] = useState<SnapLine[]>([]);
   const [space, setSpace] = useState(false);
   const [editCell, setEditCell] = useState<{ id: string; cell: number } | null>(null);
+  const [editTableCell, setEditTableCell] = useState<{ id: string; r: number; c: number } | null>(null);
   const drag = useRef<Drag | null>(null);
 
   const pages = useMemo(() => enumeratePages(doc, new Date(), settings.dateFormat), [doc, settings.dateFormat]);
@@ -389,7 +391,7 @@ export function EditorCanvas() {
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (editingTextId || editCell) return;
+    if (editingTextId || editCell || editTableCell) return;
     (e.target as Element).setPointerCapture?.(e.pointerId);
     const p = toMm(e);
     const base = { sx: p.sx, sy: p.sy, mx: p.x, my: p.y, orig: new Map(), boxes: new Map(), panX: view.panX, panY: view.panY, moved: false, additive: e.shiftKey || e.metaKey || e.ctrlKey };
@@ -589,6 +591,12 @@ export function EditorCanvas() {
       });
       setEditCell({ id: t.id, cell: idx < 0 ? t.cells.length - 1 : idx });
     }
+    if (t.type === 'table') {
+      const b = boxOf(t);
+      const l = toLocal(p.x, p.y, b, t.rotation);
+      const a = cellAtPoint(t, b.w, b.h, l.x + b.w / 2, l.y + b.h / 2);
+      if (a) setEditTableCell({ id: t.id, r: a.r, c: a.c });
+    }
   };
 
   const onWheel = (e: React.WheelEvent) => {
@@ -660,6 +668,7 @@ export function EditorCanvas() {
 
   const editingEl = editingTextId ? doc.elements.find((e) => e.id === editingTextId) : null;
   const cellEl = editCell ? (doc.elements.find((e) => e.id === editCell.id) as GridElement | undefined) : undefined;
+  const tableEl = editTableCell ? (doc.elements.find((e) => e.id === editTableCell.id) as TableElement | undefined) : undefined;
 
   return (
     <div
@@ -752,6 +761,25 @@ export function EditorCanvas() {
             const cells = cellEl.cells.map((c, i) => (i === editCell.cell ? { ...c, text: v } : c));
             useEditor.getState().updateElement(cellEl.id, { cells, w: gridWidth({ cells, pitch: cellEl.pitch }) } as Partial<LabelElement>);
             setEditCell(null);
+          }}
+        />
+      )}
+
+      {tableEl && editTableCell && (
+        <InlineEditor
+          box={(() => {
+            // Unrotated cell box; rotated tables are edited in place of their bounding cell.
+            const b = boxOf(tableEl);
+            const a = areaAt(tableEl, editTableCell.r, editTableCell.c) ?? { r: editTableCell.r, c: editTableCell.c, rs: 1, cs: 1 };
+            const { xs, ys } = tableEdges(tableEl, b.w, b.h);
+            return toScreen({ x: b.x + xs[a.c], y: b.y + ys[a.r], w: xs[a.c + a.cs] - xs[a.c], h: ys[a.r + a.rs] - ys[a.r] });
+          })()}
+          value={tableEl.cells[editTableCell.r]?.[editTableCell.c]?.text ?? ''}
+          onDone={(v) => {
+            const { r, c } = editTableCell;
+            const cells = tableEl.cells.map((row, i) => row.map((cell, j) => (i === r && j === c ? { ...cell, text: v } : cell)));
+            useEditor.getState().updateElement(tableEl.id, { cells } as Partial<LabelElement>);
+            setEditTableCell(null);
           }}
         />
       )}

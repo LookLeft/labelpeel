@@ -29,6 +29,8 @@ It is a static site, so it deploys to GitHub Pages and works offline as an insta
   - undo and redo
   - inline text editing with bold, italic and underline, and auto-fit text
   - bundled fonts, your installed system fonts, or a font file you load
+- **Tables.** Rows and columns with merged cells, black, hatched or dotted cell fills, and solid, dashed or dotted lines. Double-click a cell to edit it.
+- **Frames.** Around the whole label or any part of it: rectangle, rounded, double, thick, dashed, dotted, hazard stripes, brackets, corner marks, cut corners, ticket and tag.
 - **Codes.** QR, Data Matrix, Code 128, Code 39, EAN, UPC and others. Modules snap to printer dots so codes scan reliably.
 - **Data.** Placeholders such as:
   - `{{date}}`, `{{date+12m}}` and `{{date+1y:MMM YYYY}}`

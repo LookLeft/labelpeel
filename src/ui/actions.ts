@@ -1,4 +1,4 @@
-import { makeBarcode, makeImage, makeShape, makeSymbol, makeText, newDoc, printableRect, uid } from '../model/defaults';
+import { makeBarcode, makeImage, makeShape, makeSymbol, makeTable, makeText, newDoc, printableRect, uid } from '../model/defaults';
 import { applyLabelType, labelType, layoutPostPass } from '../model/labelTypes';
 import { previewContext } from '../model/pages';
 import type { LabelDoc, LabelElement, ShapeKind } from '../model/types';
@@ -150,8 +150,24 @@ export function insertText(text = 'Text') {
   S().addElement(place(makeText(S().doc, text)));
 }
 
+export function insertTable() {
+  S().addElement(place(makeTable(S().doc)));
+}
+
 export function insertShape(kind: ShapeKind) {
-  S().addElement(place(makeShape(S().doc, kind)));
+  const doc = S().doc;
+  if (kind === 'frame') {
+    // A new frame goes around the whole printable area, behind everything else.
+    const length = computeLayout(doc, previewContext(doc, S().previewIndex)).length;
+    const r = printableRect(doc, length);
+    const inset = 0.5;
+    const box = doc.orientation === 'portrait' ? { x: r.x, w: r.w, y: inset, h: length - 2 * inset } : { x: inset, w: length - 2 * inset, y: r.y, h: r.h };
+    const frame = makeShape(doc, 'frame', { ...box, frameStyle: 'rect' });
+    S().update((d) => ({ ...d, elements: [frame, ...d.elements] }));
+    S().select([frame.id]);
+    return;
+  }
+  S().addElement(place(makeShape(doc, kind)));
 }
 
 export function insertSymbol(key: string) {

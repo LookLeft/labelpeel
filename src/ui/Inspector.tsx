@@ -8,7 +8,9 @@ import {
 import { useEditor } from '../state/store';
 import type {
   BarcodeElement, GridElement, ImageElement, LabelDoc, LabelElement, ShapeElement, SymbolElement, TextElement, MediaKind,
+  TableElement, CellFill, LineStyle,
 } from '../model/types';
+import { tableAreas, mergeCells, splitCell, insertRow, insertCol, deleteRow, deleteCol, type CellArea } from '../model/table';
 import { Check, ColorInput, Field, FontSelect, NumberInput, Select, Seg, TextArea, TextInput } from './fields';
 import { labelType, applyLabelType, DB_PRESETS, type ParamDef } from '../model/labelTypes';
 import { sizesFor, TAPE_COLORS } from '../model/media';
@@ -16,7 +18,7 @@ import { SYMBOLOGIES, isTwoD } from '../render/barcode';
 import { CUSTOM_SYMBOLS } from '../clipart/custom';
 import { symbolName, symbolSvg } from '../clipart';
 import { PLACEHOLDER_HELP } from '../model/placeholders';
-import { gridWidth, designSize, printableRect } from '../model/defaults';
+import { gridWidth, designSize, printableRect, FRAME_STYLES } from '../model/defaults';
 import { effectiveProfile } from '../printer/service';
 import { computeLayout } from '../render/render';
 import { previewContext } from '../model/pages';
@@ -148,10 +150,7 @@ function LabelPanel({ doc }: { doc: LabelDoc }) {
           <Select
             value={doc.frame.style}
             onChange={(style) => set({ frame: { ...doc.frame, style } })}
-            options={[
-              { value: 'none', label: 'None' }, { value: 'rect', label: 'Rectangle' }, { value: 'round', label: 'Rounded' },
-              { value: 'double', label: 'Double' }, { value: 'thick', label: 'Thick' }, { value: 'dashed', label: 'Dashed' }, { value: 'brackets', label: 'Brackets' },
-            ]}
+            options={[{ value: 'none', label: 'None' }, ...FRAME_STYLES]}
           />
         </Field>
         {doc.frame.style !== 'none' && (
@@ -276,7 +275,7 @@ function SymbolChooser({ value, onChange }: { value: string; onChange: (v: strin
 
 // ------------------------------------------------------------------ elements
 
-const TYPE_NAMES: Record<LabelElement['type'], string> = { text: 'Text', shape: 'Shape', symbol: 'Symbol', image: 'Image', barcode: 'Barcode', grid: 'Grid / blocks' };
+const TYPE_NAMES: Record<LabelElement['type'], string> = { text: 'Text', shape: 'Shape', symbol: 'Symbol', image: 'Image', barcode: 'Barcode', grid: 'Grid / blocks', table: 'Table' };
 
 function ElementPanel({ el }: { el: LabelElement }) {
   const updateElement = useEditor((s) => s.updateElement);
@@ -308,6 +307,7 @@ function ElementPanel({ el }: { el: LabelElement }) {
         {el.type === 'image' && <ImageProps el={el} up={up} />}
         {el.type === 'barcode' && <BarcodeProps el={el} up={up} />}
         {el.type === 'grid' && <GridProps el={el} up={up} />}
+        {el.type === 'table' && <TableProps el={el} up={up} />}
       </div>
       <GeometrySection el={el} up={up} />
       <ArrangeSection />
@@ -335,7 +335,7 @@ function PlaceholderChips({ onInsert }: { onInsert: (t: string) => void }) {
   );
 }
 
-function TextStyleControls({ el, up }: { el: TextElement | GridElement; up: (patch: Partial<TextElement> & Partial<GridElement>, key?: string) => void }) {
+function TextStyleControls({ el, up }: { el: TextElement | GridElement | TableElement; up: (patch: Partial<TextElement> & Partial<GridElement>, key?: string) => void }) {
   return (
     <>
       <Field label="Font">
@@ -408,8 +408,14 @@ function ShapeProps({ el, up }: { el: ShapeElement; up: Up<ShapeElement> }) {
         <Select value={el.shape} onChange={(shape) => up({ shape })} options={[
           { value: 'rect', label: 'Rectangle' }, { value: 'roundrect', label: 'Rounded rectangle' }, { value: 'ellipse', label: 'Ellipse' },
           { value: 'line', label: 'Line' }, { value: 'triangle', label: 'Triangle' }, { value: 'diamond', label: 'Diamond' }, { value: 'arrow', label: 'Arrow' },
+          { value: 'frame', label: 'Frame' },
         ]} />
       </Field>
+      {el.shape === 'frame' && (
+        <Field label="Frame style">
+          <Select value={el.frameStyle ?? 'rect'} onChange={(frameStyle) => up({ frameStyle })} options={FRAME_STYLES} />
+        </Field>
+      )}
       <div className="grid2">
         <Field label="Line width">
           <NumberInput value={el.strokeWidth} onChange={(strokeWidth) => up({ strokeWidth }, 'sw')} unit="mm" min={0.1} max={10} step={0.1} />
@@ -420,10 +426,12 @@ function ShapeProps({ el, up }: { el: ShapeElement; up: Up<ShapeElement> }) {
           </Field>
         )}
       </div>
-      <Field label="Line style">
-        <Seg value={el.dash} onChange={(dash) => up({ dash })} options={[{ value: 'solid', label: 'Solid' }, { value: 'dashed', label: 'Dashed' }, { value: 'dotted', label: 'Dotted' }]} />
-      </Field>
-      {el.shape !== 'line' && (
+      {el.shape !== 'frame' && (
+        <Field label="Line style">
+          <Seg value={el.dash} onChange={(dash) => up({ dash })} options={[{ value: 'solid', label: 'Solid' }, { value: 'dashed', label: 'Dashed' }, { value: 'dotted', label: 'Dotted' }]} />
+        </Field>
+      )}
+      {el.shape !== 'line' && el.shape !== 'frame' && (
         <>
           <Check checked={el.fill} onChange={(fill) => up({ fill })} label="Filled" />
           <Check checked={el.stroke} onChange={(stroke) => up({ stroke })} label="Outline" />
@@ -716,6 +724,154 @@ function MultiPanel({ els }: { els: LabelElement[] }) {
         )}
       </div>
       <ArrangeSection />
+    </>
+  );
+}
+
+// ------------------------------------------------------------------ table
+
+const LINE_OPTIONS: { value: LineStyle; label: string }[] = [
+  { value: 'solid', label: 'Solid' },
+  { value: 'dashed', label: 'Dashed' },
+  { value: 'dotted', label: 'Dotted' },
+  { value: 'none', label: 'None' },
+];
+
+function TableProps({ el, up }: { el: TableElement; up: Up<TableElement> }) {
+  const R = el.rows.length;
+  const C = el.cols.length;
+  // Selected block of grid positions; shift-click extends it from the anchor.
+  const [anchor, setAnchor] = useState({ r: 0, c: 0 });
+  const [sel, setSel] = useState<CellArea>({ r: 0, c: 0, rs: 1, cs: 1 });
+  const clamp = (a: CellArea): CellArea => {
+    const r = Math.min(a.r, R - 1);
+    const c = Math.min(a.c, C - 1);
+    return { r, c, rs: Math.max(1, Math.min(a.rs, R - r)), cs: Math.max(1, Math.min(a.cs, C - c)) };
+  };
+  const cur = clamp(sel);
+  const areas = tableAreas(el);
+  const inSel = (a: CellArea) => a.r < cur.r + cur.rs && a.r + a.rs > cur.r && a.c < cur.c + cur.cs && a.c + a.cs > cur.c;
+  const picked = areas.filter(inSel);
+  const single = picked.length === 1 ? picked[0] : null;
+  const first = el.cells[cur.r]?.[cur.c];
+
+  const pick = (a: CellArea, extend: boolean) => {
+    if (!extend) {
+      setAnchor({ r: a.r, c: a.c });
+      setSel(a);
+      return;
+    }
+    const r0 = Math.min(anchor.r, a.r);
+    const c0 = Math.min(anchor.c, a.c);
+    setSel({ r: r0, c: c0, rs: Math.max(anchor.r, a.r + a.rs - 1) - r0 + 1, cs: Math.max(anchor.c, a.c + a.cs - 1) - c0 + 1 });
+  };
+  /** Apply a change to every selected cell. */
+  const setCells = (patch: Partial<TableElement['cells'][number][number]>, key?: string) =>
+    up({ cells: el.cells.map((row, i) => row.map((cell, j) => (picked.some((a) => a.r === i && a.c === j) ? { ...cell, ...patch } : cell))) }, key);
+  const structure = (patch: Partial<TableElement>, next?: CellArea) => {
+    up(patch);
+    if (next) setSel(next);
+  };
+
+  return (
+    <>
+      <Field label={`Cells (${R} × ${C}) · shift-click to select several`}>
+        <div className="table-picker" style={{ gridTemplateColumns: el.cols.map((w) => `${w}fr`).join(' '), gridTemplateRows: `repeat(${R}, minmax(26px, auto))` }}>
+          {areas.map((a) => {
+            const cell = el.cells[a.r]?.[a.c];
+            return (
+              <button
+                key={`${a.r}-${a.c}`}
+                className={`table-pick ${inSel(a) ? 'on' : ''} fill-${cell?.fill ?? 'none'}`}
+                style={{ gridRow: `${a.r + 1} / span ${a.rs}`, gridColumn: `${a.c + 1} / span ${a.cs}`, fontWeight: cell?.bold ?? el.bold ? 700 : 400 }}
+                onClick={(e) => pick(a, e.shiftKey)}
+                title={cell?.text || 'Empty cell'}
+              >
+                {cell?.text.split('\n')[0] || '\u00a0'}
+              </button>
+            );
+          })}
+        </div>
+      </Field>
+
+      {single && first && (
+        <Field label="Cell text">
+          <TextArea value={first.text} onChange={(text) => setCells({ text }, `cell:${cur.r}:${cur.c}`)} rows={2} />
+          <PlaceholderChips onInsert={(t) => setCells({ text: first.text ? `${first.text} ${t}` : t })} />
+        </Field>
+      )}
+      <Field label={single ? 'Cell fill' : `Fill (${picked.length} cells)`}>
+        <Seg<CellFill> value={first?.fill ?? 'none'} onChange={(fill) => setCells({ fill })} options={[
+          { value: 'none', label: 'None' }, { value: 'black', label: 'Black' }, { value: 'hatch', label: 'Hatch' }, { value: 'dots', label: 'Dots' },
+        ]} />
+      </Field>
+      <div className="row" style={{ marginBottom: 10 }}>
+        <Seg value={first?.align ?? el.align} onChange={(align) => setCells({ align })} options={[
+          { value: 'left', label: <AlignLeft size={14} />, title: 'Align left' },
+          { value: 'center', label: <AlignCenter size={14} />, title: 'Centre' },
+          { value: 'right', label: <AlignRight size={14} />, title: 'Align right' },
+        ]} />
+        <div className="seg" style={{ flex: '0 0 auto' }}>
+          <button className={first?.bold ?? el.bold ? 'on' : ''} title="Bold" onClick={() => setCells({ bold: !(first?.bold ?? el.bold) })}><Bold size={14} /></button>
+        </div>
+      </div>
+      <div className="row tight" style={{ marginBottom: 10, flexWrap: 'wrap' }}>
+        <button className="btn sm" disabled={picked.length < 2} onClick={() => structure(mergeCells(el, cur))}>Merge cells</button>
+        <button className="btn sm" disabled={!single || (single.rs === 1 && single.cs === 1)} onClick={() => single && structure(splitCell(el, single.r, single.c), { ...single, rs: 1, cs: 1 })}>Split</button>
+      </div>
+      <div className="grid2" style={{ marginBottom: 10 }}>
+        <button className="btn sm" onClick={() => structure(insertRow(el, cur.r))}><Plus size={13} /> Row above</button>
+        <button className="btn sm" onClick={() => structure(insertRow(el, cur.r + cur.rs), { ...cur, r: cur.r + cur.rs, rs: 1 })}><Plus size={13} /> Row below</button>
+        <button className="btn sm" onClick={() => structure(insertCol(el, cur.c))}><Plus size={13} /> Column left</button>
+        <button className="btn sm" onClick={() => structure(insertCol(el, cur.c + cur.cs), { ...cur, c: cur.c + cur.cs, cs: 1 })}><Plus size={13} /> Column right</button>
+        <button className="btn sm danger" disabled={R <= 1} onClick={() => structure(deleteRow(el, cur.r), { ...cur, rs: 1 })}><X size={13} /> Delete row</button>
+        <button className="btn sm danger" disabled={C <= 1} onClick={() => structure(deleteCol(el, cur.c), { ...cur, cs: 1 })}><X size={13} /> Delete column</button>
+      </div>
+
+      <Field label="Column widths (relative)">
+        <div className="grid3">
+          {el.cols.map((w, i) => (
+            <NumberInput key={i} value={w} onChange={(v) => up({ cols: el.cols.map((x, j) => (j === i ? Math.max(0.1, v) : x)) }, `col${i}`)} min={0.1} max={20} step={0.1} />
+          ))}
+        </div>
+      </Field>
+      <Field label="Row heights (relative)">
+        <div className="grid3">
+          {el.rows.map((h, i) => (
+            <NumberInput key={i} value={h} onChange={(v) => up({ rows: el.rows.map((x, j) => (j === i ? Math.max(0.1, v) : x)) }, `row${i}`)} min={0.1} max={20} step={0.1} />
+          ))}
+        </div>
+      </Field>
+
+      <Field label="Outer border">
+        <Seg value={el.border} onChange={(border) => up({ border })} options={LINE_OPTIONS} />
+      </Field>
+      <Field label="Lines between cells">
+        <Seg value={el.inner} onChange={(inner) => up({ inner })} options={LINE_OPTIONS} />
+      </Field>
+      <div className="grid2">
+        <Field label="Border width">
+          <NumberInput value={el.borderWidth} onChange={(borderWidth) => up({ borderWidth }, 'bw')} unit="mm" min={0.1} max={3} step={0.05} />
+        </Field>
+        <Field label="Line width">
+          <NumberInput value={el.innerWidth} onChange={(innerWidth) => up({ innerWidth }, 'iw')} unit="mm" min={0.1} max={3} step={0.05} />
+        </Field>
+      </div>
+
+      <TextStyleControls el={el} up={up as never} />
+      <div className="grid2">
+        <Field label="Cell padding">
+          <NumberInput value={el.padding} onChange={(padding) => up({ padding }, 'pad')} unit="mm" min={0} max={5} step={0.1} />
+        </Field>
+        <Field label="Vertical">
+          <Seg value={el.vAlign} onChange={(vAlign) => up({ vAlign })} options={[
+            { value: 'top', label: <AlignStartHorizontal size={14} /> },
+            { value: 'middle', label: <AlignCenterHorizontal size={14} /> },
+            { value: 'bottom', label: <AlignEndHorizontal size={14} /> },
+          ]} />
+        </Field>
+      </div>
+      <div className="hint">Tip: double-click a cell on the label to edit its text.</div>
     </>
   );
 }

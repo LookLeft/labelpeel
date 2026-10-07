@@ -24,7 +24,7 @@ export interface BaseElement {
   generated?: boolean;
 }
 
-export type ElementType = 'text' | 'shape' | 'symbol' | 'image' | 'barcode' | 'grid';
+export type ElementType = 'text' | 'shape' | 'symbol' | 'image' | 'barcode' | 'grid' | 'table';
 
 export interface TextStyle {
   font: string;
@@ -59,7 +59,7 @@ export interface TextElement extends BaseElement, TextStyle {
   framePadding?: number;
 }
 
-export type ShapeKind = 'rect' | 'roundrect' | 'ellipse' | 'line' | 'triangle' | 'arrow' | 'diamond';
+export type ShapeKind = 'rect' | 'roundrect' | 'ellipse' | 'line' | 'triangle' | 'arrow' | 'diamond' | 'frame';
 
 export interface ShapeElement extends BaseElement {
   type: 'shape';
@@ -69,6 +69,8 @@ export interface ShapeElement extends BaseElement {
   fill: boolean;
   dash: 'solid' | 'dashed' | 'dotted';
   radius: number;
+  /** Style of a 'frame' shape. */
+  frameStyle?: FrameStyle;
 }
 
 export interface SymbolElement extends BaseElement {
@@ -130,13 +132,48 @@ export interface GridElement extends BaseElement, Omit<TextStyle, 'align' | 'vAl
   groupEvery: number;
 }
 
+export type CellFill = 'none' | 'black' | 'hatch' | 'dots';
+export type LineStyle = 'solid' | 'dashed' | 'dotted' | 'none';
+
+export interface TableCell {
+  /** May contain {{placeholders}}. */
+  text: string;
+  /** Merged size when this cell is the top-left of a merge (default 1). */
+  rowSpan?: number;
+  colSpan?: number;
+  /** Black fill prints the text white. */
+  fill?: CellFill;
+  align?: HAlign;
+  bold?: boolean;
+}
+
+export interface TableElement extends BaseElement, Omit<TextStyle, 'align' | 'vAlign'> {
+  type: 'table';
+  /** Relative column widths and row heights; the table fills its box. */
+  cols: number[];
+  rows: number[];
+  /** cells[row][col]. Cells covered by a merge keep their data but aren't drawn. */
+  cells: TableCell[][];
+  align: HAlign;
+  vAlign: VAlign;
+  autoSize: boolean;
+  /** Space between the cell edge and its text, in mm. */
+  padding: number;
+  border: LineStyle;
+  borderWidth: number;
+  /** Lines between cells. */
+  inner: LineStyle;
+  innerWidth: number;
+}
+
 export type LabelElement =
   | TextElement
   | ShapeElement
   | SymbolElement
   | ImageElement
   | BarcodeElement
-  | GridElement;
+  | GridElement
+  | TableElement;
 
 export type MediaKind = 'tze' | 'hse' | 'fle' | 'fabric';
 
@@ -153,8 +190,12 @@ export interface Media {
   clearFrom?: number;
 }
 
+export type FrameStyle =
+  | 'none' | 'rect' | 'round' | 'double' | 'thick' | 'dashed' | 'dotted'
+  | 'brackets' | 'corners' | 'chamfer' | 'ticket' | 'tag' | 'hazard';
+
 export interface FrameSpec {
-  style: 'none' | 'rect' | 'round' | 'double' | 'thick' | 'dashed' | 'brackets';
+  style: FrameStyle;
   inset: number;
   thickness: number;
 }

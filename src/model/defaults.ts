@@ -1,4 +1,4 @@
-import type {
+import type { TableElement, FrameStyle,
   BarcodeElement,
   GridElement,
   ImageElement,
@@ -63,6 +63,21 @@ export function printableRect(doc: LabelDoc, length = doc.length, dpi?: number, 
     ? { x: band.top, y: 0, w: band.height, h: length }
     : { x: 0, y: band.top, w: length, h: band.height };
 }
+
+export const FRAME_STYLES: { value: FrameStyle; label: string }[] = [
+  { value: 'rect', label: 'Rectangle' },
+  { value: 'round', label: 'Rounded' },
+  { value: 'double', label: 'Double' },
+  { value: 'thick', label: 'Thick' },
+  { value: 'dashed', label: 'Dashed' },
+  { value: 'dotted', label: 'Dotted' },
+  { value: 'hazard', label: 'Hazard stripes' },
+  { value: 'brackets', label: 'Brackets' },
+  { value: 'corners', label: 'Corner marks' },
+  { value: 'chamfer', label: 'Cut corners' },
+  { value: 'ticket', label: 'Ticket' },
+  { value: 'tag', label: 'Tag' },
+];
 
 /** The clear laminate part of self-laminating tape in design space, or null. */
 export function clearRect(doc: LabelDoc, length = doc.length) {
@@ -171,6 +186,37 @@ export function makeBarcode(doc: LabelDoc, symbology: string, data: string): Bar
     textSize: 6,
     font: 'Roboto Mono',
     eclevel: 'M',
+  };
+}
+
+/** A small two-row table, e.g. for inspection labels. */
+export function makeTable(doc: LabelDoc, over: Partial<TableElement> = {}): TableElement {
+  const r = printableRect(doc);
+  const ts = defaultTextStyle();
+  const head = (text: string) => ({ text, bold: true });
+  return {
+    id: uid(),
+    type: 'table',
+    x: doc.marginStart,
+    y: r.y,
+    w: Math.max(40, r.h * 4),
+    h: r.h,
+    rotation: 0,
+    ...ts,
+    font: 'Roboto Condensed',
+    rows: [1, 1],
+    cols: [1, 1, 1],
+    cells: [
+      [head('Tested by'), head('Date'), head('Next due')],
+      [{ text: '' }, { text: '{{date}}' }, { text: '{{date+12m}}' }],
+    ],
+    autoSize: true,
+    padding: 0.5,
+    border: 'solid',
+    borderWidth: 0.3,
+    inner: 'solid',
+    innerWidth: 0.2,
+    ...over,
   };
 }
 

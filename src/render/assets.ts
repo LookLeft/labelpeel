@@ -97,7 +97,11 @@ export async function preloadDoc(doc: LabelDoc, colors: string[] = ['#000000', '
       getImage(el.src);
       tasks.push(waitFor(`img|${el.src.length}|${el.src.slice(-64)}|${el.src.slice(0, 96)}`));
     }
-    if (el.type === 'text' || el.type === 'grid') tasks.push(ensureFont(el.font, el.bold, el.italic));
+    if (el.type === 'text' || el.type === 'grid' || el.type === 'table') {
+      tasks.push(ensureFont(el.font, el.bold, el.italic));
+      // Table cells can be bold on their own.
+      if (el.type === 'table' && !el.bold) tasks.push(ensureFont(el.font, true, el.italic));
+    }
     if (el.type === 'barcode' && el.showText) tasks.push(ensureFont(el.font, false, false));
   }
   await Promise.all(tasks);

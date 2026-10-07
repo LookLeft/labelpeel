@@ -6,6 +6,7 @@ import { DPI, MM_PER_INCH, PT_TO_MM, printableBand } from '../model/media';
 import { resolve, type PlaceholderContext } from '../model/placeholders';
 import type {
   BarcodeElement,
+  FrameStyle,
   GridElement,
   HAlign,
   ImageElement,
@@ -13,9 +14,11 @@ import type {
   LabelElement,
   ShapeElement,
   SymbolElement,
+  TableElement,
   TextElement,
   VAlign,
 } from '../model/types';
+import { tableAreas, tableEdges } from '../model/table';
 import { encodeBarcode } from './barcode';
 import { getImage, getSymbolImage } from './assets';
 import { ditherToMask } from './dither';
@@ -211,7 +214,10 @@ export function computeLayout(doc: LabelDoc, pctx: PlaceholderContext): Layout {
     boxes.set(el.id, b);
     if (el.hidden) continue;
     const e = rotatedExtent(b, el.rotation);
-    extent = Math.max(extent, doc.orientation === 'portrait' ? e.y + e.h : e.x + e.w);
+    // Frames may sit in the end margin, so one around the whole label doesn't
+    // make an auto-length label grow.
+    const inMargin = el.type === 'shape' && el.shape === 'frame' ? doc.marginEnd : 0;
+    extent = Math.max(extent, (doc.orientation === 'portrait' ? e.y + e.h : e.x + e.w) - inMargin);
   }
   let length = doc.length;
   if (doc.lengthMode === 'auto') {
@@ -401,6 +407,9 @@ function drawShape(ctx: CanvasRenderingContext2D, el: ShapeElement, b: Box, o: R
       ctx.closePath();
       break;
     }
+    case 'frame':
+      drawFrameStyle(ctx, el.frameStyle ?? 'rect', x, y, w, h, el.frameStyle === 'thick' ? lw * 2.5 : lw, o.ink);
+      return;
     case 'line':
       ctx.lineCap = el.dash === 'dotted' ? 'round' : 'butt';
       ctx.moveTo(x, y);
@@ -671,41 +680,232 @@ function drawGrid(ctx: CanvasRenderingContext2D, el: GridElement, b: Box, o: Ren
   }
 }
 
+/**
+ * Draw a frame of the given style inside the box (x, y, w, h), in px. `lw` is
+ * the line width; hazard stripes use a band at least four lines wide.
+ */
+export function drawFrameStyle(ctx: CanvasRenderingContext2D, style: FrameStyle, x: number, y: number, w: number, h: number, lw: number, ink: string) {
+  if (style === 'none' || w <= 0 || h <= 0) return;
+  ctx.save();
+  ctx.strokeStyle = ink;
+  ctx.fillStyle = ink;
+  ctx.lineWidth = lw;
+  ctx.lineJoin = 'miter';
+  // Centre line of the stroke, so the frame stays inside the box.
+  const cx = x + lw / 2;
+  const cy = y + lw / 2;
+  const cw = Math.max(0, w - lw);
+  const ch = Math.max(0, h - lw);
+  const m = Math.min(cw, ch);
+  ctx.beginPath();
+  switch (style) {
+    case 'hazard': {
+      // Bold enough to read as hazard tape at 180 dpi.
+      const band = Math.min(Math.max(lw * 4, m * 0.14), m / 3);
+      ctx.beginPath();
+      ctx.rect(x, y, w, h);
+      ctx.rect(x + band, y + band, w - 2 * band, h - 2 * band);
+      ctx.clip('evenodd');
+      const period = band * 2;
+      for (let t = -h; t < w + h; t += period) {
+        ctx.beginPath();
+        ctx.moveTo(x + t, y + h);
+        ctx.lineTo(x + t + h, y);
+        ctx.lineTo(x + t + h + period / 2, y);
+        ctx.lineTo(x + t + period / 2, y + h);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+      return;
+    }
+    case 'brackets': {
+      const k = Math.min(ch * 0.6, cw * 0.2);
+      ctx.moveTo(cx + k, cy);
+      ctx.lineTo(cx, cy);
+      ctx.lineTo(cx, cy + ch);
+      ctx.lineTo(cx + k, cy + ch);
+      ctx.moveTo(cx + cw - k, cy);
+      ctx.lineTo(cx + cw, cy);
+      ctx.lineTo(cx + cw, cy + ch);
+      ctx.lineTo(cx + cw - k, cy + ch);
+      break;
+    }
+    case 'corners': {
+      const k = m * 0.3;
+      for (const [px, py, dx, dy] of [[cx, cy, 1, 1], [cx + cw, cy, -1, 1], [cx, cy + ch, 1, -1], [cx + cw, cy + ch, -1, -1]]) {
+        ctx.moveTo(px + dx * k, py);
+        ctx.lineTo(px, py);
+        ctx.lineTo(px, py + dy * k);
+      }
+      break;
+    }
+    case 'chamfer': {
+      const c = m * 0.22;
+      ctx.moveTo(cx + c, cy);
+      ctx.lineTo(cx + cw - c, cy);
+      ctx.lineTo(cx + cw, cy + c);
+      ctx.lineTo(cx + cw, cy + ch - c);
+      ctx.lineTo(cx + cw - c, cy + ch);
+      ctx.lineTo(cx + c, cy + ch);
+      ctx.lineTo(cx, cy + ch - c);
+      ctx.lineTo(cx, cy + c);
+      ctx.closePath();
+      break;
+    }
+    case 'ticket': {
+      // Quarter-circle notches cut into each corner.
+      const r = m * 0.2;
+      ctx.moveTo(cx + r, cy);
+      ctx.lineTo(cx + cw - r, cy);
+      ctx.arc(cx + cw, cy, r, Math.PI, Math.PI / 2, true);
+      ctx.lineTo(cx + cw, cy + ch - r);
+      ctx.arc(cx + cw, cy + ch, r, -Math.PI / 2, Math.PI, true);
+      ctx.lineTo(cx + r, cy + ch);
+      ctx.arc(cx, cy + ch, r, 0, -Math.PI / 2, true);
+      ctx.lineTo(cx, cy + r);
+      ctx.arc(cx, cy, r, Math.PI / 2, 0, true);
+      ctx.closePath();
+      break;
+    }
+    case 'tag': {
+      // Pointed left end with a hole, like a luggage tag.
+      const c = Math.min(ch / 2, cw * 0.2);
+      ctx.moveTo(cx + c, cy);
+      ctx.lineTo(cx + cw, cy);
+      ctx.lineTo(cx + cw, cy + ch);
+      ctx.lineTo(cx + c, cy + ch);
+      ctx.lineTo(cx, cy + ch / 2);
+      ctx.closePath();
+      ctx.moveTo(cx + c * 0.75 + ch * 0.12, cy + ch / 2);
+      ctx.arc(cx + c * 0.75, cy + ch / 2, ch * 0.12, 0, Math.PI * 2);
+      break;
+    }
+    case 'round':
+      ctx.roundRect(cx, cy, cw, ch, m * 0.3);
+      break;
+    default:
+      ctx.rect(cx, cy, cw, ch);
+      if (style === 'double') {
+        const g = lw * 2;
+        ctx.rect(cx + g, cy + g, Math.max(0, cw - 2 * g), Math.max(0, ch - 2 * g));
+      }
+  }
+  if (style === 'dotted') {
+    ctx.lineCap = 'round';
+    ctx.setLineDash([0, lw * 2]);
+  } else dash(ctx, style === 'dashed' ? 'dashed' : 'solid', lw);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawTable(ctx: CanvasRenderingContext2D, el: TableElement, b: Box, o: RenderOptions) {
+  const s = o.scale;
+  const x0 = (-b.w / 2) * s;
+  const y0 = (-b.h / 2) * s;
+  const { xs, ys } = tableEdges(el, b.w * s, b.h * s);
+  const R = el.rows.length;
+  const C = el.cols.length;
+  const pad = el.padding * s;
+  const innerW = Math.max(1, el.innerWidth * s);
+  const borderW = Math.max(1, el.borderWidth * s);
+  const areas = tableAreas(el);
+  ctx.strokeStyle = o.ink;
+  ctx.fillStyle = o.ink;
+
+  for (const a of areas) {
+    const cell = el.cells[a.r]?.[a.c] ?? { text: '' };
+    const x = x0 + xs[a.c];
+    const y = y0 + ys[a.r];
+    const w = xs[a.c + a.cs] - xs[a.c];
+    const h = ys[a.r + a.rs] - ys[a.r];
+    let color = o.ink;
+    if (cell.fill === 'black') {
+      ctx.fillRect(x, y, w, h);
+      color = o.paper;
+    } else if (cell.fill === 'hatch' || cell.fill === 'dots') {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, w, h);
+      ctx.clip();
+      if (cell.fill === 'hatch') {
+        // Diagonal lines 1 mm apart, as used for blanked or spare positions.
+        ctx.lineWidth = Math.max(1, 0.15 * s);
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        for (let t = -h; t < w; t += 1 * s) {
+          ctx.moveTo(x + t, y + h);
+          ctx.lineTo(x + t + h, y);
+        }
+        ctx.stroke();
+      } else {
+        // A light shade from round dots, which print evenly at 180 dpi.
+        const step = 0.7 * s;
+        const r = 0.17 * s;
+        ctx.beginPath();
+        for (let j = 0, yy = y + step / 2; yy < y + h; yy += step, j++) {
+          for (let xx = x + (j % 2 ? step : step / 2); xx < x + w; xx += step) {
+            ctx.moveTo(xx + r, yy);
+            ctx.arc(xx, yy, r, 0, Math.PI * 2);
+          }
+        }
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+    drawTextBox(ctx, {
+      text: resolve(cell.text, o.pctx),
+      st: { ...el, bold: cell.bold ?? el.bold },
+      x: x + pad,
+      y: y + pad,
+      w: Math.max(0, w - 2 * pad),
+      h: Math.max(0, h - 2 * pad),
+      s,
+      autoSize: el.autoSize,
+      sizePt: el.size,
+      align: cell.align ?? el.align,
+      vAlign: el.vAlign,
+      color,
+    });
+  }
+
+  // Inner lines: the right and bottom edge of each cell that isn't on the outside.
+  if (el.inner !== 'none') {
+    ctx.lineWidth = innerW;
+    dash(ctx, el.inner, innerW);
+    ctx.beginPath();
+    for (const a of areas) {
+      const x = x0 + xs[a.c];
+      const y = y0 + ys[a.r];
+      const xe = x0 + xs[a.c + a.cs];
+      const ye = y0 + ys[a.r + a.rs];
+      if (a.c + a.cs < C) {
+        ctx.moveTo(xe, y);
+        ctx.lineTo(xe, ye);
+      }
+      if (a.r + a.rs < R) {
+        ctx.moveTo(x, ye);
+        ctx.lineTo(xe, ye);
+      }
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  if (el.border !== 'none') {
+    ctx.lineWidth = borderW;
+    dash(ctx, el.border, borderW);
+    ctx.strokeRect(x0 + borderW / 2, y0 + borderW / 2, b.w * s - borderW, b.h * s - borderW);
+    ctx.setLineDash([]);
+  }
+}
+
 function drawFrame(ctx: CanvasRenderingContext2D, doc: LabelDoc, length: number, o: RenderOptions) {
   const f = doc.frame;
   if (f.style === 'none') return;
   const s = o.scale;
   const r = printableRect(doc, length);
   const lw = Math.max(1, f.thickness * s * (f.style === 'thick' ? 2.5 : 1));
-  const x = (r.x + f.inset) * s + lw / 2;
-  const y = (r.y + f.inset) * s + lw / 2;
-  const w = (r.w - 2 * f.inset) * s - lw;
-  const h = (r.h - 2 * f.inset) * s - lw;
-  ctx.strokeStyle = o.ink;
-  ctx.lineWidth = lw;
-  dash(ctx, f.style === 'dashed' ? 'dashed' : 'solid', lw);
-  if (f.style === 'brackets') {
-    const k = Math.min(h * 0.6, w * 0.2);
-    ctx.beginPath();
-    ctx.moveTo(x + k, y);
-    ctx.lineTo(x, y);
-    ctx.lineTo(x, y + h);
-    ctx.lineTo(x + k, y + h);
-    ctx.moveTo(x + w - k, y);
-    ctx.lineTo(x + w, y);
-    ctx.lineTo(x + w, y + h);
-    ctx.lineTo(x + w - k, y + h);
-    ctx.stroke();
-  } else {
-    roundRectPath(ctx, x, y, w, h, f.style === 'round' ? Math.min(w, h) * 0.3 : 0);
-    ctx.stroke();
-    if (f.style === 'double') {
-      const g = lw * 2;
-      roundRectPath(ctx, x + g, y + g, w - 2 * g, h - 2 * g, 0);
-      ctx.stroke();
-    }
-  }
-  ctx.setLineDash([]);
+  drawFrameStyle(ctx, f.style, (r.x + f.inset) * s, (r.y + f.inset) * s, (r.w - 2 * f.inset) * s, (r.h - 2 * f.inset) * s, lw, o.ink);
 }
 
 /** Draw the whole label into ctx with (0,0) at the design origin. */
@@ -748,6 +948,9 @@ export function renderLabel(ctx: CanvasRenderingContext2D, doc: LabelDoc, layout
         break;
       case 'grid':
         drawGrid(ctx, el, b, o);
+        break;
+      case 'table':
+        drawTable(ctx, el, b, o);
         break;
     }
     ctx.restore();

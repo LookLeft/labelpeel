@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Type, Square, Circle, Minus, Triangle, Diamond, ArrowRight, Image as ImageIcon, QrCode, Barcode, CalendarDays, CalendarClock,
   Hash, LayoutGrid, Shapes, Database, Layers as LayersIcon, LayoutTemplate, Library, Eye, EyeOff, Lock, Unlock, Trash2, Upload,
-  ClipboardPaste, Search, RectangleHorizontal, FolderOpen,
+  ClipboardPaste, Search, RectangleHorizontal, FolderOpen, Frame, Table,
 } from 'lucide-react';
 import { useEditor, type LeftTab } from '../state/store';
-import { insertBarcode, insertImage, insertPlaceholder, insertShape, insertSymbol, insertText, loadDataFile, thumbnail, loadDoc, confirmDiscard } from './actions';
+import { insertTable, insertBarcode, insertImage, insertPlaceholder, insertShape, insertSymbol, insertText, loadDataFile, thumbnail, loadDoc, confirmDiscard } from './actions';
 import { TEMPLATES, TEMPLATE_CATEGORIES, type Template } from '../model/templates';
 import { CATEGORIES, customCatalog, loadCatalog, type ClipArtItem } from '../clipart';
 import { svgUrl } from './Inspector';
@@ -82,6 +82,10 @@ function InsertTab() {
             <LayoutGrid size={20} />
             Blocks
           </button>
+          <button className="tile" onClick={() => insertTable()}>
+            <Table size={20} />
+            Table
+          </button>
         </div>
       </div>
       <div className="section">
@@ -118,6 +122,7 @@ function InsertTab() {
           <button className="tile" onClick={() => insertShape('triangle')}><Triangle size={20} />Triangle</button>
           <button className="tile" onClick={() => insertShape('diamond')}><Diamond size={20} />Diamond</button>
           <button className="tile" onClick={() => insertShape('arrow')}><ArrowRight size={20} />Arrow</button>
+          <button className="tile" onClick={() => insertShape('frame')}><Frame size={20} />Frame</button>
         </div>
       </div>
     </>
@@ -387,7 +392,9 @@ function LayersTab() {
               ? e.shape
               : e.type === 'grid'
                 ? `Blocks (${e.cells.length})`
-                : 'Image';
+                : e.type === 'table'
+                  ? `Table ${e.rows.length} × ${e.cols.length}`
+                  : 'Image';
   return (
     <div className="section">
       {doc.elements.length === 0 && <div className="hint">No elements yet.</div>}
