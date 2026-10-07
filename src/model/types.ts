@@ -146,6 +146,11 @@ export interface Media {
   width: number;
   tapeColor: string;
   inkColor: string;
+  /**
+   * Self-laminating tape: where the clear laminate starts, in mm across the
+   * tape from its top edge. The white print band is above it.
+   */
+  clearFrom?: number;
 }
 
 export interface FrameSpec {

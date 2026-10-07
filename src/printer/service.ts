@@ -51,7 +51,7 @@ export async function connect(kind: 'usb' | 'bluetooth' | 'serial' | 'native'): 
         ? await connectNative()
         : kind === 'usb'
           ? await connectUsb()
-          : await connectSerial({ bluetoothOnly: kind === 'bluetooth' });
+          : await connectSerial({ bluetoothOnly: kind === 'bluetooth', log: (msg) => log('info', msg) });
     t.onDisconnect = () => {
       log('error', 'Printer disconnected.');
       usePrinter.setState({ transport: null, status: null });

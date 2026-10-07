@@ -2,11 +2,11 @@ import { X, Usb, Bluetooth, Cable, RefreshCw, Scissors, Unplug } from 'lucide-re
 import { useEditor } from '../state/store';
 import { connect, disconnect, feedAndCut, refreshStatus, usePrinter, effectiveProfile } from '../printer/service';
 import { PROFILES } from '../printer/profiles';
-import { supportsSerial, supportsUsb } from '../printer/transport';
+import { isMac, supportsSerial, supportsUsb } from '../printer/transport';
 import { supportsNative } from '../printer/native';
 import { Check, Field, Select } from './fields';
 import { findTape } from '../model/media';
-import { TAPE_RGB, TEXT_RGB } from '../printer/status';
+import { matchLoadedTape } from './actions';
 
 export function PrinterPanel() {
   const open = useEditor((s) => s.printerOpen);
@@ -28,19 +28,7 @@ export function PrinterPanel() {
     }
   };
 
-  const useTape = () => {
-    if (!status) return;
-    st().update((d) => ({
-      ...d,
-      media: {
-        ...d.media,
-        kind: status.mediaType === 0x11 || status.mediaType === 0x17 ? 'hse' : d.media.kind === 'hse' ? 'tze' : d.media.kind,
-        width: status.mediaWidth === 4 ? 3.5 : status.mediaWidth,
-        tapeColor: TAPE_RGB[status.tapeColor] ?? d.media.tapeColor,
-        inkColor: TEXT_RGB[status.textColor] ?? d.media.inkColor,
-      },
-    }));
-  };
+  const useTape = () => status && matchLoadedTape(status);
   const mismatch = status && status.mediaWidth && Math.abs(findTape(doc.media.kind, doc.media.width).code - status.mediaWidth) > 0.5;
 
   return (
@@ -81,7 +69,8 @@ export function PrinterPanel() {
               ) : (
                 <>
                   <div style={{ display: 'grid', gap: 8 }}>
-                    <button className="btn block" disabled={!supportsSerial() || connecting} onClick={() => run(() => connect('bluetooth'))}>
+                    {/* On a Mac only the cu.* serial port works, so list every port. */}
+                    <button className="btn block" disabled={!supportsSerial() || connecting} onClick={() => run(() => connect(isMac() ? 'serial' : 'bluetooth'))}>
                       <Bluetooth size={15} /> Bluetooth (pair in your OS first)
                     </button>
                     <button className="btn block" disabled={!supportsUsb() || connecting} onClick={() => run(() => connect('usb'))}>
@@ -97,7 +86,15 @@ export function PrinterPanel() {
                     </div>
                   )}
                   <div className="hint" style={{ marginTop: 12 }}>
-                    <b>Bluetooth:</b> the PT-E560BT uses Bluetooth Classic. Pair it in your system settings, then choose it here (Chrome 117+ lists paired printers directly; on Windows you can also pick its outgoing COM port).<br />
+                    {isMac() ? (
+                      <>
+                        <b>Bluetooth on a Mac:</b> pair the printer in System Settings → Bluetooth (it's normal for it to show “Not Connected” afterwards). Then click Bluetooth and pick the entry starting with <b>cu.</b>, for example <code>cu.PT-E560BT…</code>, not the plain PT-E560BT one.<br />
+                      </>
+                    ) : (
+                      <>
+                        <b>Bluetooth:</b> the PT-E560BT uses Bluetooth Classic. Pair it in your system settings, then choose it here (Chrome 117+ lists paired printers directly; on Windows you can also pick its outgoing COM port).<br />
+                      </>
+                    )}
                     <b>USB:</b> works on macOS, Linux, ChromeOS and Android. On Windows the Brother driver holds the USB device, so use Bluetooth there.
                   </div>
                 </>

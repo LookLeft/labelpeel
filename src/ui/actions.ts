@@ -9,6 +9,7 @@ import { computeLayout, renderLabel, renderPrintBitmap } from '../render/render'
 import { concat } from '../printer/protocol';
 import { prepareJob, effectiveProfile } from '../printer/service';
 import { useEditor } from '../state/store';
+import { TAPE_RGB, TEXT_RGB, type PrinterStatus } from '../printer/status';
 
 const S = () => useEditor.getState();
 
@@ -196,4 +197,25 @@ export async function loadDataFile(file?: File | null) {
   } catch (e) {
     S().notify((e as Error).message, 'error');
   }
+}
+
+/**
+ * Switch the design to the tape the printer reports. Label types re-run their
+ * layout so generated content fits the new width.
+ */
+export function matchLoadedTape(status: PrinterStatus) {
+  const s = useEditor.getState();
+  s.update((d) => {
+    const next: LabelDoc = {
+      ...d,
+      media: {
+        ...d.media,
+        kind: status.mediaType === 0x11 || status.mediaType === 0x17 ? 'hse' : d.media.kind === 'hse' ? 'tze' : d.media.kind,
+        width: status.mediaWidth === 4 ? 3.5 : status.mediaWidth,
+        tapeColor: TAPE_RGB[status.tapeColor] ?? d.media.tapeColor,
+        inkColor: TEXT_RGB[status.textColor] ?? d.media.inkColor,
+      },
+    };
+    return labelType(next.labelType).generate ? applyLabelType(next, next.labelType, next.typeParams) : next;
+  });
 }

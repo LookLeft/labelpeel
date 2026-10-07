@@ -10,6 +10,7 @@ import { concat } from '../printer/protocol';
 import { download } from '../io/files';
 import { Check, Field, NumberInput, Seg } from './fields';
 import { findTape } from '../model/media';
+import { matchLoadedTape } from './actions';
 
 export function PrintDialog() {
   const open = useEditor((s) => s.printOpen);
@@ -36,6 +37,17 @@ export function PrintDialog() {
   }, [open, doc, profile, settings.minimalProtocol, settings.dateFormat, range]);
 
 
+  // Tape the printer reports vs the tape the design is for (width codes, mm).
+  const loaded = status?.mediaWidth ?? 0;
+  const designed = findTape(doc.media.kind, doc.media.width).code;
+  const loadedMm = loaded === 4 ? 3.5 : loaded;
+  // A design for wider tape loses its edges, and the head prints past the tape
+  // edge, so printing it needs an explicit override.
+  const tooWide = loaded > 0 && designed > loaded + 0.5;
+  const narrower = loaded > 0 && designed < loaded - 0.5;
+  const [override, setOverride] = useState(false);
+  useEffect(() => setOverride(false), [loaded, designed]);
+
   if (!open) return null;
   const close = () => !busy && st().set({ printOpen: false });
   const p = doc.print;
@@ -43,7 +55,6 @@ export function PrintDialog() {
   const totalMm = job ? job.bitmaps.reduce((s, b) => s + b.width, 0) / (profile.dpi / 25.4) : 0;
   const clipped = job ? new Set(job.bitmaps.filter((b) => b.spillDots > 0)).size : 0;
   const plan = job ? cutPlan(job.bitmaps.length, p, profile.halfCut, settings.minimalProtocol) : null;
-  const mismatch = status && status.mediaWidth && Math.abs(findTape(doc.media.kind, doc.media.width).code - status.mediaWidth) > 0.5;
 
   const doPrint = async () => {
     if (!job) return;
@@ -99,9 +110,34 @@ export function PrintDialog() {
               <Check checked={p.chain} onChange={(chain) => setPrint({ chain })} label="Chain print (don't feed the last label)" />
               <Check checked={p.mirror} onChange={(mirror) => setPrint({ mirror })} label="Mirror" />
               {settings.minimalProtocol && <div className="callout warn" style={{ marginTop: 10 }}>Minimal command set is on: cut options are left to the printer.</div>}
-              {mismatch && (
-                <div className="callout warn" style={{ marginTop: 10 }}>
-                  Printer reports {status!.mediaWidth} mm tape, label is {doc.media.width} mm.
+              {tooWide && (
+                <div className="callout err" style={{ marginTop: 10, flexDirection: 'column' }}>
+                  <div>
+                    The printer has {loadedMm} mm tape, but this label is designed for {doc.media.width} mm. The edges of the design would be lost, and the print head
+                    would print past the edge of the tape.
+                  </div>
+                  <div className="row tight">
+                    <button className="btn sm" onClick={() => matchLoadedTape(status!)}>
+                      Switch design to {loadedMm} mm
+                    </button>
+                    {!override && (
+                      <button className="btn ghost sm" onClick={() => setOverride(true)}>
+                        Print anyway
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+              {narrower && (
+                <div className="callout" style={{ marginTop: 10, flexDirection: 'column' }}>
+                  <div>
+                    The printer has {loadedMm} mm tape and this label is designed for {doc.media.width} mm. It will print centred, with blank tape above and below.
+                  </div>
+                  <div className="row tight">
+                    <button className="btn sm" onClick={() => matchLoadedTape(status!)}>
+                      Use the full {loadedMm} mm
+                    </button>
+                  </div>
                 </div>
               )}
               {clipped > 0 && (
@@ -139,7 +175,7 @@ export function PrintDialog() {
               <Bluetooth size={14} /> Connect printer…
             </button>
           ) : (
-            <button className="btn primary" disabled={!job || busy} onClick={doPrint}>
+            <button className="btn primary" disabled={!job || busy || (tooWide && !override)} onClick={doPrint}>
               <Printer size={14} /> {busy ? 'Printing…' : `Print ${job?.bitmaps.length ?? ''}`}
             </button>
           )}
@@ -155,7 +191,7 @@ const hexRgb = (h: string) => {
 };
 
 /** One label's exact dots on the full width of the tape. */
-function TapeLabel({ bmp, media, scale }: { bmp: PrintBitmap; media: Media; scale: number }) {
+function TapeLabel({ bmp, media, scale, dpi }: { bmp: PrintBitmap; media: Media; scale: number; dpi: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const c = ref.current;
@@ -163,7 +199,11 @@ function TapeLabel({ bmp, media, scale }: { bmp: PrintBitmap; media: Media; scal
     const ink = hexRgb(media.inkColor);
     const tape = hexRgb(media.tapeColor);
     // Edges the head can't reach: the tape colour, shaded like the editor.
-    const edge = tape.map((v) => Math.round(v * 0.82 + 140 * 0.18));
+    const shade = (rgb: number[], k: number) => rgb.map((v) => Math.round(v * (1 - k) + 140 * k));
+    const edge = shade(tape, 0.18);
+    // Self-laminating tape: the clear laminate part, grey as in the editor.
+    const clear = shade(tape, 0.32);
+    const clearRow = media.clearFrom != null ? Math.round((media.clearFrom * dpi) / 25.4) : Infinity;
     const lost = [240, 82, 82];
     const m = bmp.margin;
     const rows = m * 2 + bmp.height;
@@ -175,11 +215,12 @@ function TapeLabel({ bmp, media, scale }: { bmp: PrintBitmap; media: Media; scal
       const inBand = r >= m && r < m + bmp.height;
       for (let col = 0; col < bmp.width; col++) {
         const on = inBand ? bmp.bits[(r - m) * bmp.width + col] : bmp.spill?.[(r < m ? r : r - bmp.height) * bmp.width + col];
-        img.data.set([...(on ? (inBand ? ink : lost) : inBand ? tape : edge), 255], (r * bmp.width + col) * 4);
+        const bg = r >= clearRow ? (inBand ? clear : shade(clear, 0.18)) : inBand ? tape : edge;
+        img.data.set([...(on ? (inBand ? ink : lost) : bg), 255], (r * bmp.width + col) * 4);
       }
     }
     cx.putImageData(img, 0, 0);
-  }, [bmp, media.inkColor, media.tapeColor]);
+  }, [bmp, media.inkColor, media.tapeColor, media.clearFrom, dpi]);
   return (
     <canvas
       ref={ref}
@@ -222,7 +263,7 @@ function TapeStrip({ bitmaps, plan, media, dpi, more }: { bitmaps: PrintBitmap[]
             {piece.map((i, j) => (
               <div key={i} className="tape-label" title={`Label ${i + 1} · ${mm(bitmaps[i])}`}>
                 {j > 0 && <span className={`tape-joint ${plan.joints[i - 1]}`} title={plan.joints[i - 1] === 'half' ? 'Half cut' : 'Label edge, not cut'} />}
-                <TapeLabel bmp={bitmaps[i]} media={media} scale={scale} />
+                <TapeLabel bmp={bitmaps[i]} media={media} scale={scale} dpi={dpi} />
               </div>
             ))}
             {k === pieces.length - 1 && !more && plan.end !== 'cut' && (

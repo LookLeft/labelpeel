@@ -52,7 +52,7 @@ Printing needs Chrome or Edge on desktop, ChromeOS or Android. Firefox and Safar
 
 | Connection | How |
 | --- | --- |
-| Bluetooth | Pair the printer in your OS settings, then choose **Connect printer → Bluetooth**. This uses Web Serial over Bluetooth Classic RFCOMM and needs Chrome 117 or later. On Windows you can also choose the printer's outgoing COM port. |
+| Bluetooth | Pair the printer in your OS settings, then choose **Connect printer → Bluetooth**. This uses Web Serial over Bluetooth Classic RFCOMM and needs Chrome 117 or later. On Windows you can also choose the printer's outgoing COM port. On macOS, pick the port starting with `cu.` (for example `cu.PT-E560BT…`): Chrome's direct Bluetooth link fails to open there. The printer showing "Not Connected" in macOS after pairing is normal. |
 | USB | Uses WebUSB. Works on macOS, Linux, ChromeOS and Android. On Windows, Brother's driver holds the device, so use Bluetooth there. On Linux, you may need a udev rule giving access to vendor `04f9`. |
 
 Over USB the printer reports the tape that is loaded, and the app offers to switch your design to match it.

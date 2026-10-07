@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Minus, Plus, Maximize, ChevronLeft, ChevronRight, Grid3x3, AlertTriangle } from 'lucide-react';
 import { useEditor } from '../state/store';
-import { designSize, gridWidth, printableRect } from '../model/defaults';
+import { clearRect, designSize, gridWidth, printableRect } from '../model/defaults';
 import { enumeratePages } from '../model/pages';
-import { computeLayout, renderLabel, renderPrintBitmap, type Box } from '../render/render';
+import { CLEAR_LAMINATE, computeLayout, renderLabel, renderPrintBitmap, type Box } from '../render/render';
 import { onAssetsChanged } from '../render/assets';
 import { onFontsChanged } from '../render/fonts';
 import { effectiveProfile } from '../printer/service';
@@ -204,6 +204,11 @@ export function EditorCanvas() {
     ctx.fillStyle = doc.media.tapeColor;
     ctx.fillRect(panX, panY, lw, lh);
     ctx.restore();
+    const cr = clearRect(doc, layout.length);
+    if (cr) {
+      ctx.fillStyle = CLEAR_LAMINATE;
+      ctx.fillRect(panX + cr.x * zoom, panY + cr.y * zoom, cr.w * zoom, cr.h * zoom);
+    }
     // Tape continues beyond the label (faded).
     ctx.save();
     ctx.globalAlpha = 0.18;

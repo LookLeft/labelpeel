@@ -64,6 +64,15 @@ export function printableRect(doc: LabelDoc, length = doc.length, dpi?: number, 
     : { x: 0, y: band.top, w: length, h: band.height };
 }
 
+/** The clear laminate part of self-laminating tape in design space, or null. */
+export function clearRect(doc: LabelDoc, length = doc.length) {
+  const from = doc.media.clearFrom;
+  if (from == null || from >= doc.media.width) return null;
+  const clear = doc.media.width - from;
+  // Portrait designs are rotated onto the tape: its top edge is the design's right side.
+  return doc.orientation === 'portrait' ? { x: 0, y: 0, w: clear, h: length } : { x: 0, y: from, w: length, h: clear };
+}
+
 export function makeText(doc: LabelDoc, text = 'Text', over: Partial<TextElement> = {}): TextElement {
   const r = printableRect(doc);
   const cross = doc.orientation === 'portrait' ? r.w : r.h;

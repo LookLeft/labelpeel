@@ -119,26 +119,33 @@ export const LABEL_TYPES: LabelTypeDef[] = [
     media: { kind: 'tze', width: 24, tapeColor: '#ffffff', inkColor: '#111111' },
     params: [
       { key: 'text', label: 'Text', type: 'textarea' },
-      { key: 'zone', label: 'White print band', type: 'number', unit: 'mm', min: 3, max: 36, step: 0.5, help: 'Height of the white part of the tape. The rest is clear laminate.' },
+      { key: 'zone', label: 'White print band', type: 'number', unit: 'mm', min: 3, max: 36, step: 0.5, help: 'Height of the white part, from the top of the print area (9.5 mm on 24 mm TZe-SL251). The rest is clear laminate, shown grey.' },
       { key: 'repeat', label: 'Repeat text', type: 'number', min: 1, max: 6 },
       { key: 'gap', label: 'Gap between repeats', type: 'number', unit: 'mm', min: 0, step: 0.5, when: (p) => num(p.repeat, 1) > 1 },
       ...fontParams,
     ],
-    defaults: { text: 'L1-01', zone: 9, repeat: 1, gap: 4, font: 'Roboto Condensed', bold: true },
+    defaults: { text: 'L1-01', zone: 9.5, repeat: 1, gap: 4, font: 'Roboto Condensed', bold: true },
     generate(doc, p) {
       const r = printableRect(doc);
-      const zone = Math.min(num(p.zone, 9), doc.media.width);
-      const top = Math.max(r.y, 0.6);
-      const h = Math.max(1.5, Math.min(zone - 1, r.y + r.h - top) - 0.4);
+      // The white band starts at the top of the print area; text keeps a 1 mm
+      // margin inside it so it stays clear of the laminate edge.
+      const clearFrom = Math.min(r.y + num(p.zone, 9.5), r.y + r.h);
+      const top = r.y + 1;
+      const h = Math.max(1.5, clearFrom - 1 - top);
       const n = Math.max(1, Math.round(num(p.repeat, 1)));
       const els: LabelElement[] = [];
-      let x = doc.marginStart;
       for (let i = 0; i < n; i++) {
-        const t = makeText(doc, str(p.text), { x, y: top, h, font: str(p.font, 'Inter'), bold: bool(p.bold), autoWidth: true, autoSize: true });
-        els.push(gen(t));
-        x += 12 + num(p.gap, 4);
+        // Repeats are placed after the measured width of the one before.
+        const name = i > 0 ? `__after:${num(p.gap, 4)}` : undefined;
+        els.push(gen(makeText(doc, str(p.text), { x: doc.marginStart, y: top, h, font: str(p.font, 'Inter'), bold: bool(p.bold), autoWidth: true, autoSize: true, name })));
       }
-      return { elements: els, guides: [{ axis: 'y', pos: zone, label: 'clear laminate' }], orientation: 'landscape', lengthMode: 'auto' };
+      return {
+        elements: els,
+        media: { ...doc.media, clearFrom },
+        guides: [{ axis: 'y', pos: clearFrom, label: 'clear laminate' }],
+        orientation: 'landscape',
+        lengthMode: 'auto',
+      };
     },
   },
   {
@@ -601,7 +608,10 @@ export function applyLabelType(doc: LabelDoc, typeId: string, params?: Record<st
   const def = labelType(typeId);
   const p = { ...def.defaults, ...(params ?? (doc.labelType === typeId ? doc.typeParams : {})) };
   const keep = doc.elements.filter((e) => !e.generated);
-  let next: LabelDoc = { ...doc, labelType: def.id, typeParams: p };
+  // Only the self-laminating type has a clear part; its generator sets it again.
+  const { clearFrom: _clear, ...media } = doc.media;
+  void _clear;
+  let next: LabelDoc = { ...doc, media, labelType: def.id, typeParams: p };
   if (!def.generate) return { ...next, elements: doc.labelType === def.id ? doc.elements : keep, guides: [] };
   const out = def.generate(next, p);
   next = { ...next, ...out, elements: [...out.elements, ...keep] };
@@ -609,13 +619,13 @@ export function applyLabelType(doc: LabelDoc, typeId: string, params?: Record<st
 }
 
 /**
- * Elements named "__after" sit after the widest preceding generated element;
+ * Elements named "__after" (or "__after:<gap mm>") sit after the widest preceding generated element;
  * "__right" elements go at the end of the label. Uses measured widths when a
  * measuring canvas is available.
  */
 export function layoutPostPass(doc: LabelDoc): LabelDoc {
   if (typeof document === 'undefined') return doc;
-  const needs = doc.elements.some((e) => e.name === '__after' || e.name === '__right');
+  const needs = doc.elements.some((e) => e.name?.startsWith('__after') || e.name === '__right');
   if (!needs) return doc;
   return measurePass(doc);
 }

@@ -1,7 +1,7 @@
 // Label renderer shared by the editor (screen) and the printer (1-bit raster).
 // Coordinates are converted from mm to pixels by multiplying with `s`.
 
-import { designSize, gridWidth, printableRect } from '../model/defaults';
+import { clearRect, designSize, gridWidth, printableRect } from '../model/defaults';
 import { DPI, MM_PER_INCH, PT_TO_MM, printableBand } from '../model/media';
 import { resolve, type PlaceholderContext } from '../model/placeholders';
 import type {
@@ -709,12 +709,20 @@ function drawFrame(ctx: CanvasRenderingContext2D, doc: LabelDoc, length: number,
 }
 
 /** Draw the whole label into ctx with (0,0) at the design origin. */
+/** Overlay that shows the clear laminate of self-laminating tape as grey. */
+export const CLEAR_LAMINATE = 'rgba(120, 128, 140, 0.32)';
+
 export function renderLabel(ctx: CanvasRenderingContext2D, doc: LabelDoc, layout: Layout, o: RenderOptions) {
   const s = o.scale;
   const [W, H] = designSize(doc, layout.length);
   if (o.background) {
     ctx.fillStyle = o.paper;
     ctx.fillRect(0, 0, W * s, H * s);
+    const cr = clearRect(doc, layout.length);
+    if (cr) {
+      ctx.fillStyle = CLEAR_LAMINATE;
+      ctx.fillRect(cr.x * s, cr.y * s, cr.w * s, cr.h * s);
+    }
   }
   for (const el of doc.elements) {
     if (el.hidden || o.skip?.has(el.id)) continue;

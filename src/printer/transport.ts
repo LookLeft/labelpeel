@@ -20,6 +20,11 @@ export const SPP_UUID = '00001101-0000-1000-8000-00805f9b34fb';
 
 export const supportsUsb = () => typeof navigator !== 'undefined' && 'usb' in navigator;
 export const supportsSerial = () => typeof navigator !== 'undefined' && 'serial' in navigator;
+/**
+ * On macOS, Chrome's direct RFCOMM link to the PT-E560BT fails to open, but the
+ * serial port macOS creates when pairing (/dev/cu.PT-E560BT…) works.
+ */
+export const isMac = () => typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -97,35 +102,40 @@ export async function connectUsb(device?: USBDevice): Promise<Transport> {
   return t;
 }
 
-// Bluetooth SPP links often fail on the first open while the radio pages the
-// printer, so retry once before explaining the usual causes.
-async function openWithRetry(port: SerialPort): Promise<void> {
-  const open = () => port.open({ baudRate: 115200, bufferSize: 65536 });
-  try {
-    await open();
-    return;
-  } catch (e) {
-    if ((e as Error).name === 'InvalidStateError') return; // already open
-  }
-  await new Promise((r) => setTimeout(r, 1500));
-  try {
-    await open();
-  } catch (e) {
-    if ((e as Error).name === 'InvalidStateError') return;
+// Bluetooth SPP links often fail to open while the radio pages the printer
+// (macOS drops the link after pairing and reconnects on demand, which can take
+// a few seconds), so retry with growing pauses before explaining the usual causes.
+async function openWithRetry(port: SerialPort, log: (msg: string) => void): Promise<void> {
+  const delays = [0, 2000, 4000];
+  let last: Error | null = null;
+  for (let i = 0; i < delays.length; i++) {
+    if (delays[i]) await sleep(delays[i]);
     try {
-      await port.forget?.();
-    } catch {
-      /* ignore */
+      await port.open({ baudRate: 115200, bufferSize: 65536 });
+      return;
+    } catch (e) {
+      last = e as Error;
+      if (last.name === 'InvalidStateError') return; // already open
+      log(`Open attempt ${i + 1} of ${delays.length} failed: ${last.name}: ${last.message}`);
     }
-    throw new Error(
-      'Could not open the printer port. Check the printer is switched on and not connected to a phone or another app ' +
-        '(the PT-E560BT accepts one Bluetooth connection at a time), then try again and pick the PT-E560BT entry. ' +
-        'If it still fails, connect with the USB cable instead.',
-    );
   }
+  try {
+    await port.forget?.();
+  } catch {
+    /* ignore */
+  }
+  const info = port.getInfo() as SerialPortInfo & { bluetoothServiceClassId?: string };
+  throw new Error(
+    `Could not open the printer port (${last?.name}: ${last?.message}). ` +
+      (info.bluetoothServiceClassId && isMac()
+        ? 'On a Mac, choose Serial / Bluetooth COM port instead and pick the entry starting with "cu." (for example cu.PT-E560BT…). '
+        : 'Check the printer is switched on and not connected to a phone or another app (the PT-E560BT accepts one Bluetooth connection at a time), then try again. ') +
+      'If it still fails, connect with the USB cable instead.',
+  );
 }
 
-export async function connectSerial(opts: { bluetoothOnly?: boolean } = {}): Promise<Transport> {
+export async function connectSerial(opts: { bluetoothOnly?: boolean; log?: (msg: string) => void } = {}): Promise<Transport> {
+  const log = opts.log ?? (() => undefined);
   if (!supportsSerial()) throw new Error('Web Serial is not available in this browser. Use Chrome or Edge 117+ on desktop.');
   let port: SerialPort;
   try {
@@ -138,8 +148,15 @@ export async function connectSerial(opts: { bluetoothOnly?: boolean } = {}): Pro
     if ((e as Error).name === 'NotFoundError') throw new Error('No port selected.');
     throw e;
   }
-  await openWithRetry(port);
   const info = port.getInfo() as SerialPortInfo & { bluetoothServiceClassId?: string };
+  log(
+    info.bluetoothServiceClassId
+      ? `Opening Bluetooth RFCOMM link (service ${info.bluetoothServiceClassId})…`
+      : info.usbVendorId != null
+        ? `Opening USB serial port ${info.usbVendorId.toString(16)}:${info.usbProductId?.toString(16)}…`
+        : 'Opening serial port (OS Bluetooth/COM port)…',
+  );
+  await openWithRetry(port, log);
   const writer = port.writable!.getWriter();
   let pending: number[] = [];
   let reading = true;
