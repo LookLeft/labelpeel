@@ -110,11 +110,7 @@ textarea {
 .brand-mark {
   width: 26px;
   height: 26px;
-  border-radius: 7px;
-  background: linear-gradient(135deg, #4f8cff, #8b5cf6);
-  display: grid;
-  place-items: center;
-  color: #fff;
+  display: block;
 }
 .doc-name {
   background: transparent;

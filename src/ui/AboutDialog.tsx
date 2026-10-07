@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Tag, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useEditor } from '../state/store';
 
 export const TRADEMARK_NOTICE =
@@ -24,9 +24,7 @@ export function AboutDialog() {
     <div className="modal-back" onPointerDown={(e) => e.target === e.currentTarget && close()}>
       <div className="modal narrow">
         <div className="modal-head">
-          <div className="brand-mark">
-            <Tag size={15} />
-          </div>
+          <img className="brand-mark" src="./icon-192.png" alt="" />
           <h2>Labelsmith</h2>
           <span className="hint">v{__APP_VERSION__}</span>
           <div className="spacer" />

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   FilePlus2, FolderOpen, Save, Undo2, Redo2, Printer, ChevronDown, Download, FileImage, FileUp, Bluetooth, Usb, Library,
-  Sun, Moon, Monitor, Upload, Type as TypeIcon, Tag, Info,
+  Sun, Moon, Monitor, Upload, Type as TypeIcon, Info,
 } from 'lucide-react';
 import { useEditor } from '../state/store';
 import { usePrinter } from '../printer/service';
@@ -51,9 +51,7 @@ export function TopBar() {
   return (
     <header className="topbar">
       <button className="brand" onClick={() => st().set({ aboutOpen: true })} title="About Labelsmith">
-        <div className="brand-mark">
-          <Tag size={15} />
-        </div>
+        <img className="brand-mark" src="./icon-192.png" alt="" />
         <span className="brand-name">Labelsmith</span>
       </button>
       <Menu label="File">
