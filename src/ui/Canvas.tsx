@@ -591,7 +591,10 @@ export function EditorCanvas() {
     const sx = e.clientX - r.left;
     const sy = e.clientY - r.top;
     if (e.ctrlKey || e.metaKey) {
-      const factor = Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0025));
+      // Trackpad pinches arrive as ctrl+wheel with small deltas; mouse wheel
+      // notches are ~100px. Pinches get a higher rate so they don't feel sluggish.
+      const pinch = e.deltaMode === 0 && Math.abs(e.deltaY) < 40;
+      const factor = Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : pinch ? 0.007 : 0.0025));
       setView((v) => {
         const zoom = Math.max(0.5, Math.min(80, v.zoom * factor));
         const mx = (sx - v.panX) / v.zoom;

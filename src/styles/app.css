@@ -808,8 +808,14 @@ textarea {
 }
 .wizard-split {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0, …) lets a column shrink below its content, so a long label
+     preview scrolls instead of squeezing the other column. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 20px;
+}
+/* Print dialog: the options keep a steady width and the preview takes the rest. */
+.print-split {
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
 }
 .preview-box {
   background: var(--canvas);
@@ -824,21 +830,78 @@ textarea {
   max-width: 100%;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
-.pages-strip {
+.print-summary {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+/* The job as it leaves the printer: one strip, broken where it's cut.
+   Pieces that are cut apart wrap onto new rows. */
+.tape-strip {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 340px;
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 10px;
+  max-height: 360px;
   overflow: auto;
-  padding: 10px;
+  max-width: 100%;
+  padding: 14px 12px;
   background: var(--canvas);
   border-radius: 10px;
 }
-.pages-strip canvas {
-  image-rendering: pixelated;
-  max-width: 100%;
-  align-self: flex-start;
+.tape-run {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+.tape-piece {
+  display: flex;
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+}
+.tape-label {
+  position: relative;
+  display: flex;
+}
+.tape-label canvas {
+  display: block;
+}
+.tape-cut {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  color: var(--text-2);
+}
+.tape-joint {
+  position: absolute;
+  left: -1px;
+  top: -6px;
+  bottom: -6px;
+  z-index: 1;
+}
+.tape-joint.half {
+  border-left: 2px dashed var(--accent);
+}
+.tape-joint.none {
+  top: 0;
+  bottom: 0;
+  border-left: 1px dotted rgba(127, 127, 127, 0.7);
+}
+.tape-tail {
+  width: 28px;
+  opacity: 0.45;
+  mask-image: linear-gradient(to right, #000, transparent);
+}
+.key-half,
+.key-join {
+  display: inline-block;
+  height: 10px;
+  margin: 0 2px -1px;
+}
+.key-half {
+  border-left: 2px dashed var(--accent);
+}
+.key-join {
+  border-left: 1px dotted var(--text-3);
 }
 .progress {
   height: 6px;
