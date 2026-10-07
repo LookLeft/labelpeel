@@ -77,13 +77,14 @@ function StatusBar() {
   const idx = useEditor((s) => s.previewIndex);
   const settings = useEditor((s) => s.settings);
   const transport = usePrinter((s) => s.transport);
+  const silent = usePrinter((s) => !!s.transport && s.transport.kind === 'serial' && !s.responded);
   const profile = effectiveProfile(settings.profileId);
   const length = computeLayout(doc, previewContext(doc, idx, settings.dateFormat)).length;
   const band = printableBand(doc.media.kind, doc.media.width, profile.dpi, profile.headPins);
   return (
     <footer className="statusbar">
       <span>
-        <span className={`dot ${transport ? 'on' : ''}`} /> {transport ? transport.label : 'No printer connected'}
+        <span className={`dot ${transport ? (silent ? 'warn' : 'on') : ''}`} /> {transport ? (silent ? 'Port open, printer not responding' : transport.label) : 'No printer connected'}
       </span>
       <span className="status-extra">
         Model <b>{profile.name}</b>

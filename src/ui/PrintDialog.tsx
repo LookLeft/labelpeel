@@ -17,7 +17,7 @@ export function PrintDialog() {
   const doc = useEditor((s) => s.doc);
   const settings = useEditor((s) => s.settings);
   const st = useEditor.getState;
-  const { transport, busy, progress, status } = usePrinter();
+  const { transport, busy, progress, status, responded } = usePrinter();
   const [job, setJob] = useState<PreparedJob | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState<{ from: number; to: number } | null>(null);
@@ -110,6 +110,11 @@ export function PrintDialog() {
               <Check checked={p.chain} onChange={(chain) => setPrint({ chain })} label="Chain print (don't feed the last label)" />
               <Check checked={p.mirror} onChange={(mirror) => setPrint({ mirror })} label="Mirror" />
               {settings.minimalProtocol && <div className="callout warn" style={{ marginTop: 10 }}>Minimal command set is on: cut options are left to the printer.</div>}
+              {transport?.kind === 'serial' && !responded && (
+                <div className="callout warn" style={{ marginTop: 10 }}>
+                  The printer hasn't responded since you connected. If it's off, out of range or connected to another device, nothing will print. Check it in the printer panel (Status).
+                </div>
+              )}
               {tooWide && (
                 <div className="callout err" style={{ marginTop: 10, flexDirection: 'column' }}>
                   <div>

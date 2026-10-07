@@ -45,6 +45,8 @@ export function TopBar() {
   const st = useEditor.getState;
   const transport = usePrinter((s) => s.transport);
   const status = usePrinter((s) => s.status);
+  // A serial port can be open with no printer behind it until the printer replies.
+  const silent = usePrinter((s) => !!s.transport && s.transport.kind === 'serial' && !s.responded);
   const detected = usePrinter((s) => s.detectedProfile);
   const mod = navigator.platform.includes('Mac') ? '⌘' : 'Ctrl+';
 
@@ -124,9 +126,9 @@ export function TopBar() {
       {dirty && <span className="hint" title="Unsaved changes">●</span>}
       <div className="spacer" />
       <button className="btn" onClick={() => st().set({ printerOpen: true })} title="Printer connection">
-        <span className={`dot ${transport ? (status?.errors.length ? 'err' : 'on') : ''}`} />
+        <span className={`dot ${transport ? (status?.errors.length ? 'err' : silent ? 'warn' : 'on') : ''}`} />
         {transport ? (transport.kind === 'usb' ? <Usb size={14} /> : <Bluetooth size={14} />) : <Bluetooth size={14} className="mobile-only" />}
-        <span className="btn-label">{transport ? `${detected?.name ?? 'Printer'}${status ? ` · ${status.mediaWidth} mm` : ''}` : 'Connect printer'}</span>
+        <span className="btn-label">{transport ? (silent ? 'Printer not responding' : `${detected?.name ?? 'Printer'}${status ? ` · ${status.mediaWidth} mm` : ''}`) : 'Connect printer'}</span>
       </button>
       <button className="btn primary" onClick={() => st().set({ printOpen: true })} title={`Print (${mod}P)`}>
         <Printer size={15} /> <span className="btn-label">Print</span>

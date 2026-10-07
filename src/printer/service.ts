@@ -9,7 +9,7 @@ import { profileById, profileByPid, type PrinterProfile } from './profiles';
 import { bitmapToRaster } from './raster';
 import { findAllStatus, findStatus, type PrinterStatus } from './status';
 import { connectNative } from './native';
-import { connectSerial, connectUsb, type Transport } from './transport';
+import { connectSerial, connectUsb, isMac, type Transport } from './transport';
 
 export interface LogLine {
   t: number;
@@ -21,6 +21,12 @@ interface PrinterState {
   transport: Transport | null;
   connecting: boolean;
   status: PrinterStatus | null;
+  /**
+   * The printer has sent a status reply since connecting. A serial port can
+   * open with nothing behind it (macOS keeps a paired printer's cu. port even
+   * when the printer is off), so only a reply proves the link works.
+   */
+  responded: boolean;
   detectedProfile: PrinterProfile | null;
   busy: boolean;
   progress: number;
@@ -32,6 +38,7 @@ export const usePrinter = create<PrinterState>((set, get) => ({
   transport: null,
   connecting: false,
   status: null,
+  responded: false,
   detectedProfile: null,
   busy: false,
   progress: 0,
@@ -54,12 +61,12 @@ export async function connect(kind: 'usb' | 'bluetooth' | 'serial' | 'native'): 
           : await connectSerial({ bluetoothOnly: kind === 'bluetooth', log: (msg) => log('info', msg) });
     t.onDisconnect = () => {
       log('error', 'Printer disconnected.');
-      usePrinter.setState({ transport: null, status: null });
+      usePrinter.setState({ transport: null, status: null, responded: false });
     };
     const detected = t.usbProductId != null ? profileByPid(t.usbProductId) ?? null : null;
-    usePrinter.setState({ transport: t, detectedProfile: detected });
-    log('info', `Connected: ${t.label}${detected ? ` — ${detected.name}` : ''}`);
-    // Status is best-effort; some Bluetooth stacks only answer after the first job.
+    usePrinter.setState({ transport: t, detectedProfile: detected, responded: false });
+    // Opening a serial port doesn't prove the printer is there; its reply does.
+    log('info', `${t.kind === 'serial' ? 'Port opened' : 'Connected'}: ${t.label}${detected ? ` — ${detected.name}` : ''}`);
     refreshStatus().catch((e) => log('error', `Status: ${(e as Error).message}`));
     return t;
   } finally {
@@ -69,7 +76,7 @@ export async function connect(kind: 'usb' | 'bluetooth' | 'serial' | 'native'): 
 
 export async function disconnect() {
   const t = usePrinter.getState().transport;
-  usePrinter.setState({ transport: null, status: null, detectedProfile: null });
+  usePrinter.setState({ transport: null, status: null, responded: false, detectedProfile: null });
   if (t) await t.close().catch(() => undefined);
   log('info', 'Disconnected.');
 }
@@ -88,11 +95,12 @@ export async function refreshStatus(): Promise<PrinterStatus | null> {
   if (bytes.length) log('rx', hex(bytes, 32));
   const found = findStatus(bytes);
   if (!found) {
-    log('info', 'No status reply (normal for some Bluetooth connections).');
+    if (t.kind === 'serial') log('error', notRespondingMessage());
+    else log('info', 'No status reply (normal for some Bluetooth connections).');
     return null;
   }
   const s = found.status;
-  usePrinter.setState({ status: s });
+  usePrinter.setState({ status: s, responded: true });
   log('info', `Status: ${s.mediaWidth} mm ${s.mediaTypeName}, ${s.tapeColorName} tape / ${s.textColorName} text${s.errors.length ? `, errors: ${s.errors.join(', ')}` : ''}`);
   return s;
 }
@@ -198,6 +206,7 @@ async function watchJob(t: Transport) {
   let deadline = start + 2500; // links that never report status end here
   let buf: Uint8Array = new Uint8Array();
   let seen = 0;
+  const silentBefore = !usePrinter.getState().responded;
   while (Date.now() < deadline) {
     const bytes = await t.read(Math.max(50, deadline - Date.now()));
     if (!bytes.length) continue;
@@ -205,13 +214,26 @@ async function watchJob(t: Transport) {
     const all = findAllStatus(buf);
     for (const s of all.slice(seen)) {
       log('rx', `${s.statusTypeName}${s.errors.length ? `: ${s.errors.join(', ')}` : ''}`);
-      usePrinter.setState({ status: s });
+      usePrinter.setState({ status: s, responded: true });
       if (s.statusType === 0x02 || s.errors.length) throw new Error(`Printer reports: ${s.errors.join(', ') || 'an error'}`);
       // Still printing: keep waiting. Completed: wait briefly for more labels.
       deadline = s.statusType === 0x01 ? Math.min(hardStop, Date.now() + 1500) : hardStop;
     }
     seen = all.length;
   }
+  if (silentBefore && !seen && t.kind === 'serial') {
+    log('error', 'The printer never replied. If nothing printed, it isn\'t really connected: ' + notRespondingMessage());
+  }
+}
+
+/** Why a serial port can be open with no printer behind it, and what to do. */
+export function notRespondingMessage() {
+  return (
+    "The port opened, but the printer didn't respond. It may be off, out of range, showing an error, or connected to another device, " +
+    'and nothing will print until it answers. ' +
+    (isMac() ? 'macOS lists the cu. port whenever the printer is paired, even when it is off. ' : '') +
+    'Turn the printer on, disconnect it from other devices, then press Status to check again.'
+  );
 }
 
 export async function feedAndCut(profile: PrinterProfile, mediaWidth: number) {

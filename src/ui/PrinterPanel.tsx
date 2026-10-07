@@ -13,7 +13,7 @@ export function PrinterPanel() {
   const settings = useEditor((s) => s.settings);
   const doc = useEditor((s) => s.doc);
   const st = useEditor.getState;
-  const { transport, connecting, status, detectedProfile, log } = usePrinter();
+  const { transport, connecting, status, responded, detectedProfile, log } = usePrinter();
   if (!open) return null;
   const close = () => st().set({ printerOpen: false });
   const profile = effectiveProfile(settings.profileId);
@@ -105,10 +105,12 @@ export function PrinterPanel() {
           ) : (
             <>
               <div className="callout" style={{ marginBottom: 12 }}>
-                <span className={`dot ${status?.errors.length ? 'err' : 'on'}`} style={{ marginTop: 5 }} />
+                <span className={`dot ${status?.errors.length ? 'err' : responded || transport.kind !== 'serial' ? 'on' : 'warn'}`} style={{ marginTop: 5 }} />
                 <div style={{ flex: 1 }}>
                   <b>{transport.label}</b>
-                  {status ? (
+                  {!responded && transport.kind === 'serial' ? (
+                    <div className="hint">Port open, but the printer hasn't responded. Check it's on and not connected to another device, then press Status.</div>
+                  ) : status ? (
                     <div>
                       {status.mediaWidth} mm {status.mediaTypeName} · {status.tapeColorName} / {status.textColorName}
                       {status.errors.length > 0 && <div style={{ color: 'var(--danger)' }}>{status.errors.join(', ')}</div>}
