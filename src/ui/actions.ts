@@ -1,0 +1,199 @@
+import { makeBarcode, makeImage, makeShape, makeSymbol, makeText, newDoc, printableRect, uid } from '../model/defaults';
+import { applyLabelType, labelType, layoutPostPass } from '../model/labelTypes';
+import { previewContext } from '../model/pages';
+import type { LabelDoc, LabelElement, ShapeKind } from '../model/types';
+import { download, libraryPut, openDocFile, parseTable, pickFile, saveDoc } from '../io/files';
+import { importLbx } from '../io/lbx';
+import { preloadDoc } from '../render/assets';
+import { computeLayout, renderLabel, renderPrintBitmap } from '../render/render';
+import { concat } from '../printer/protocol';
+import { prepareJob, effectiveProfile } from '../printer/service';
+import { useEditor } from '../state/store';
+
+const S = () => useEditor.getState();
+
+export function confirmDiscard(): boolean {
+  return !S().dirty || confirm('Discard unsaved changes to this label?');
+}
+
+export function loadDoc(doc: LabelDoc, name: string | null = null, handle: FileSystemFileHandle | null = null) {
+  S().setDoc(layoutPostPass(doc), { resetHistory: true });
+  S().setFile(name, handle);
+  S().set({ dirty: false, selection: [] });
+}
+
+export function createFromType(typeId: string, media: LabelDoc['media'], params?: Record<string, unknown>) {
+  const def = labelType(typeId);
+  let doc = newDoc({ name: def.id === 'general' ? 'Untitled label' : def.name, media });
+  doc = applyLabelType(doc, typeId, params);
+  if (typeId === 'general') doc = { ...doc, elements: [makeText(doc, 'Hello', { bold: true })] };
+  loadDoc(doc);
+}
+
+export async function openFile() {
+  if (!confirmDiscard()) return;
+  try {
+    const res = await openDocFile();
+    if (!res) return;
+    if (res.lbx) return importLbxBuffer(res.lbx, res.name);
+    loadDoc(res.doc, res.name, res.handle);
+    S().notify(`Opened ${res.name}`, 'success');
+  } catch (e) {
+    S().notify(`Could not open file: ${(e as Error).message}`, 'error');
+  }
+}
+
+async function importLbxBuffer(buf: ArrayBuffer, name: string) {
+  try {
+    const { doc, warnings } = await importLbx(buf, name);
+    loadDoc(doc);
+    S().notify(`Imported ${name}${warnings.length ? ` — ${warnings.join(' ')}` : ''}`, warnings.length ? 'info' : 'success');
+  } catch (e) {
+    S().notify(`Import failed: ${(e as Error).message}`, 'error');
+  }
+}
+
+export async function importLbxFile() {
+  if (!confirmDiscard()) return;
+  const f = await pickFile('.lbx');
+  if (f) await importLbxBuffer(await f.arrayBuffer(), f.name);
+}
+
+export async function save(saveAs = false) {
+  const s = S();
+  try {
+    const { handle, name } = await saveDoc(s.doc, s.fileHandle, saveAs);
+    s.setFile(name, handle);
+    s.markSaved();
+    s.notify(`Saved ${name}`, 'success');
+  } catch (e) {
+    if ((e as Error).name !== 'AbortError') s.notify(`Save failed: ${(e as Error).message}`, 'error');
+  }
+}
+
+export async function thumbnail(doc: LabelDoc, maxW = 360, maxH = 80): Promise<HTMLCanvasElement> {
+  await preloadDoc(doc, [doc.media.inkColor]);
+  const pctx = previewContext(doc);
+  const layout = computeLayout(doc, pctx);
+  const W = doc.orientation === 'portrait' ? doc.media.width : layout.length;
+  const H = doc.orientation === 'portrait' ? layout.length : doc.media.width;
+  const scale = Math.min(maxW / W, maxH / H, 12);
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(W * scale));
+  c.height = Math.max(1, Math.round(H * scale));
+  renderLabel(c.getContext('2d')!, doc, layout, { scale, ink: doc.media.inkColor, paper: doc.media.tapeColor, pctx, background: true });
+  return c;
+}
+
+export async function saveToLibrary() {
+  const s = S();
+  const thumb = (await thumbnail(s.doc)).toDataURL('image/png');
+  const id = (s.doc as LabelDoc & { libraryId?: string }).libraryId ?? uid();
+  const doc = { ...s.doc, libraryId: id } as LabelDoc;
+  await libraryPut({ id, name: doc.name, updated: Date.now(), thumb, doc });
+  s.setDoc(doc, { key: 'library' });
+  s.markSaved();
+  s.notify(`Saved “${doc.name}” to My labels`, 'success');
+}
+
+export async function exportPng(mode: 'print' | 'preview') {
+  const s = S();
+  const doc = s.doc;
+  await preloadDoc(doc, [doc.media.inkColor, '#000']);
+  const pctx = previewContext(doc, s.previewIndex, s.settings.dateFormat);
+  let canvas: HTMLCanvasElement;
+  if (mode === 'print') {
+    const p = effectiveProfile(s.settings.profileId);
+    const bmp = renderPrintBitmap(doc, pctx, p.dpi, p.headPins);
+    canvas = document.createElement('canvas');
+    canvas.width = bmp.width;
+    canvas.height = bmp.height;
+    const cx = canvas.getContext('2d')!;
+    const img = cx.createImageData(bmp.width, bmp.height);
+    for (let i = 0; i < bmp.bits.length; i++) {
+      const v = bmp.bits[i] ? 0 : 255;
+      img.data.set([v, v, v, 255], i * 4);
+    }
+    cx.putImageData(img, 0, 0);
+  } else {
+    canvas = await thumbnail(doc, 4000, 1200);
+  }
+  canvas.toBlob((b) => b && download(`${doc.name || 'label'}${mode === 'print' ? '-180dpi' : ''}.png`, b, 'image/png'));
+}
+
+export async function downloadPrintFile() {
+  const s = S();
+  try {
+    const job = await prepareJob(s.doc, effectiveProfile(s.settings.profileId), s.settings.minimalProtocol, s.settings.dateFormat);
+    download(`${s.doc.name || 'label'}.bin`, concat(job.chunks));
+    s.notify('Downloaded raw print file. Send it with: lp -o raw file.bin  (or copy /b file.bin to the printer port)', 'info');
+  } catch (e) {
+    s.notify((e as Error).message, 'error');
+  }
+}
+
+// ---------- inserting
+
+function place(el: LabelElement): LabelElement {
+  // Drop new elements after the existing content so they don't overlap.
+  const { doc } = S();
+  const r = printableRect(doc);
+  if (doc.orientation === 'portrait' || !doc.elements.length) return el;
+  const right = Math.max(...doc.elements.map((e) => e.x + e.w));
+  const x = Math.max(doc.marginStart, right + 2);
+  if (doc.lengthMode === 'fixed' && x + el.w > doc.length) return { ...el, x: Math.max(r.x, doc.length / 2 - el.w / 2) };
+  return { ...el, x };
+}
+
+export function insertText(text = 'Text') {
+  S().addElement(place(makeText(S().doc, text)));
+}
+
+export function insertShape(kind: ShapeKind) {
+  S().addElement(place(makeShape(S().doc, kind)));
+}
+
+export function insertSymbol(key: string) {
+  S().addElement(place(makeSymbol(S().doc, key)));
+}
+
+export function insertBarcode(symbology: string, data: string) {
+  S().addElement(place(makeBarcode(S().doc, symbology, data)));
+}
+
+export async function insertImage(file?: File | null) {
+  const f = file ?? (await pickFile('image/*'));
+  if (!f) return;
+  const src = await new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result as string);
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(f);
+  });
+  const img = new Image();
+  img.src = src;
+  await img.decode().catch(() => undefined);
+  S().addElement(place(makeImage(S().doc, src, img.naturalWidth / Math.max(1, img.naturalHeight) || 1)));
+}
+
+/** Insert a placeholder into the selected text, or as new text. */
+export function insertPlaceholder(token: string) {
+  const s = S();
+  const sel = s.doc.elements.find((e) => s.selection.includes(e.id));
+  if (sel && sel.type === 'text') s.updateElement(sel.id, { text: sel.text ? `${sel.text} ${token}` : token });
+  else if (sel && sel.type === 'barcode') s.updateElement(sel.id, { data: token });
+  else insertText(token);
+}
+
+export async function loadDataFile(file?: File | null) {
+  const f = file ?? (await pickFile('.csv,.tsv,.txt,text/csv,text/plain'));
+  if (!f) return;
+  try {
+    const data = parseTable(await f.text(), f.name);
+    S().update((d) => ({ ...d, data }));
+    S().set({ previewIndex: 0 });
+    S().notify(`Loaded ${data.rows.length} rows, ${data.columns.length} columns from ${f.name}`, 'success');
+  } catch (e) {
+    S().notify((e as Error).message, 'error');
+  }
+}
