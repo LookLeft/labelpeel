@@ -33,22 +33,34 @@ export function PrintDialog() {
     };
   }, [open, doc, profile, settings.minimalProtocol, settings.dateFormat, range]);
 
-  // Draw the exact bitmaps that will be sent.
+  // Draw the exact bitmaps that will be sent, on the full width of the tape.
   useEffect(() => {
     const host = stripRef.current;
     if (!host || !job) return;
-    const ink = doc.media.inkColor;
+    const hex = (h: string) => {
+      const m = /^#?(..)(..)(..)/.exec(h)!;
+      return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+    };
+    const ink = hex(doc.media.inkColor);
+    const tape = hex(doc.media.tapeColor);
+    // Edges the head can't reach: the tape colour, shaded like the editor.
+    const edge = tape.map((v) => Math.round(v * 0.82 + 140 * 0.18));
+    const lost = [240, 82, 82];
     const nodes = job.bitmaps.slice(0, 30).map((b) => {
+      const m = b.margin;
+      const rows = m * 2 + b.height;
       const c = document.createElement('canvas');
       c.width = b.width;
-      c.height = b.height;
+      c.height = rows;
       const cx = c.getContext('2d')!;
-      cx.fillStyle = doc.media.tapeColor;
-      cx.fillRect(0, 0, b.width, b.height);
-      const img = cx.getImageData(0, 0, b.width, b.height);
-      const m = /^#?(..)(..)(..)/.exec(ink)!;
-      const rgb = [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
-      for (let i = 0; i < b.bits.length; i++) if (b.bits[i]) img.data.set([rgb[0], rgb[1], rgb[2], 255], i * 4);
+      const img = cx.createImageData(b.width, rows);
+      for (let r = 0; r < rows; r++) {
+        const inBand = r >= m && r < m + b.height;
+        for (let col = 0; col < b.width; col++) {
+          const on = inBand ? b.bits[(r - m) * b.width + col] : b.spill?.[(r < m ? r : r - b.height) * b.width + col];
+          img.data.set([...(on ? (inBand ? ink : lost) : inBand ? tape : edge), 255], (r * b.width + col) * 4);
+        }
+      }
       cx.putImageData(img, 0, 0);
       c.style.width = `${b.width * 1.4}px`;
       c.style.maxWidth = '100%';
@@ -64,6 +76,7 @@ export function PrintDialog() {
   const p = doc.print;
   const setPrint = (patch: Partial<typeof p>) => st().update((d) => ({ ...d, print: { ...d.print, ...patch } }));
   const totalMm = job ? job.bitmaps.reduce((s, b) => s + b.width, 0) / (profile.dpi / 25.4) : 0;
+  const clipped = job ? new Set(job.bitmaps.filter((b) => b.spillDots > 0)).size : 0;
   const mismatch = status && status.mediaWidth && Math.abs(findTape(doc.media.kind, doc.media.width).code - status.mediaWidth) > 0.5;
 
   const doPrint = async () => {
@@ -120,6 +133,11 @@ export function PrintDialog() {
                   Printer reports {status!.mediaWidth} mm tape, label is {doc.media.width} mm.
                 </div>
               )}
+              {clipped > 0 && (
+                <div className="callout err" style={{ marginTop: 10 }}>
+                  {clipped === 1 && job!.bitmaps.length === 1 ? 'Part of the design' : `Part of ${clipped} label${clipped > 1 ? 's' : ''}`} falls outside the printable area and will be cut off. It's shown in red in the preview.
+                </div>
+              )}
               {error && <div className="callout err" style={{ marginTop: 10 }}>{error}</div>}
             </div>
             <div>
@@ -127,6 +145,7 @@ export function PrintDialog() {
                 Preview: exact dots ({job ? `${job.bitmaps.length} label${job.bitmaps.length > 1 ? 's' : ''}, ${(totalMm / 10).toFixed(1)} cm of tape` : 'preparing…'})
               </div>
               <div className="pages-strip" ref={stripRef} />
+              <div className="hint" style={{ marginTop: 6 }}>Shaded edges are tape the print head can't reach. Anything in red won't print.</div>
               {job && job.bitmaps.length > 30 && <div className="hint">Showing the first 30.</div>}
             </div>
           </div>

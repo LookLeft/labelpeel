@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Minus, Plus, Maximize, ChevronLeft, ChevronRight, Grid3x3 } from 'lucide-react';
+import { Minus, Plus, Maximize, ChevronLeft, ChevronRight, Grid3x3, AlertTriangle } from 'lucide-react';
 import { useEditor } from '../state/store';
 import { designSize, gridWidth, printableRect } from '../model/defaults';
 import { enumeratePages } from '../model/pages';
@@ -132,11 +132,13 @@ export function EditorCanvas() {
   }, [W]);
 
   const profile = effectiveProfile(settings.profileId);
-  const bitmap = useMemo(
-    () => (dotPreview ? renderPrintBitmap(doc, pctx, profile.dpi, profile.headPins, { mirror: false }) : null),
+  // Always rendered: it drives the dot preview and the "won't print" overlay.
+  const printBmp = useMemo(
+    () => renderPrintBitmap(doc, pctx, profile.dpi, profile.headPins, { mirror: false }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [dotPreview, doc, pctx, profile, tick],
+    [doc, pctx, profile, tick],
   );
+  const bitmap = dotPreview ? printBmp : null;
 
   // ---------------------------------------------------------------- draw
   useEffect(() => {
@@ -215,27 +217,33 @@ export function EditorCanvas() {
     }
     ctx.restore();
 
-    // Content.
-    if (bitmap) {
-      const band = printableRect(doc, layout.length, profile.dpi, profile.headPins);
-      const img = ctx.createImageData(bitmap.width, bitmap.height);
-      const ink = hexRgb(doc.media.inkColor);
-      for (let i = 0; i < bitmap.bits.length; i++) if (bitmap.bits[i]) img.data.set([ink[0], ink[1], ink[2], 255], i * 4);
+    // Draws dot rows (tape orientation) whose first row sits `fromMm` across the tape.
+    const pr = printableRect(doc, layout.length, profile.dpi, profile.headPins);
+    const dotPx = zoom / (profile.dpi / 25.4);
+    const drawDots = (width: number, height: number, bits: Uint8Array, rgb: [number, number, number], fromMm: number) => {
+      const img = ctx.createImageData(width, height);
+      for (let i = 0; i < bits.length; i++) if (bits[i]) img.data.set([rgb[0], rgb[1], rgb[2], 255], i * 4);
       const tmp = document.createElement('canvas');
-      tmp.width = bitmap.width;
-      tmp.height = bitmap.height;
+      tmp.width = width;
+      tmp.height = height;
       tmp.getContext('2d')!.putImageData(img, 0, 0);
       ctx.save();
       ctx.imageSmoothingEnabled = false;
       if (!portrait) {
-        ctx.drawImage(tmp, panX, panY + band.y * zoom, lw, band.h * zoom);
+        ctx.drawImage(tmp, panX, panY + fromMm * zoom, lw, height * dotPx);
       } else {
         // Undo the 90° rotation used for printing.
-        ctx.translate(panX + (band.x + band.w) * zoom, panY);
+        ctx.translate(panX + fromMm * zoom + height * dotPx, panY);
         ctx.rotate(Math.PI / 2);
-        ctx.drawImage(tmp, 0, 0, lh, band.w * zoom);
+        ctx.drawImage(tmp, 0, 0, lh, height * dotPx);
       }
       ctx.restore();
+    };
+    const bandStart = portrait ? pr.x : pr.y;
+
+    // Content.
+    if (bitmap) {
+      drawDots(bitmap.width, bitmap.height, bitmap.bits, hexRgb(doc.media.inkColor), bandStart);
     } else {
       ctx.save();
       ctx.translate(panX, panY);
@@ -256,7 +264,6 @@ export function EditorCanvas() {
     }
 
     // Non-printable areas.
-    const pr = printableRect(doc, layout.length, profile.dpi, profile.headPins);
     ctx.save();
     ctx.fillStyle = 'rgba(120,130,150,0.18)';
     if (!portrait) {
@@ -267,6 +274,15 @@ export function EditorCanvas() {
       ctx.fillRect(panX + (pr.x + pr.w) * zoom, panY, lw - (pr.x + pr.w) * zoom, lh);
     }
     ctx.restore();
+    // Ink the print head can't reach, in red.
+    if (printBmp.spill) {
+      const m = printBmp.margin;
+      const rows = m * 2 + printBmp.height;
+      const all = new Uint8Array(printBmp.width * rows);
+      all.set(printBmp.spill.subarray(0, printBmp.width * m));
+      all.set(printBmp.spill.subarray(printBmp.width * m), printBmp.width * (m + printBmp.height));
+      drawDots(printBmp.width, rows, all, [240, 82, 82], bandStart - m * (25.4 / profile.dpi));
+    }
 
     // Guides.
     if (settings.showGuides) {
@@ -330,7 +346,7 @@ export function EditorCanvas() {
     } else {
       ctx.fillText(`${doc.media.width} mm × ${layout.length.toFixed(1)} mm${doc.lengthMode === 'auto' ? ' (auto)' : ''}`, panX + lw / 2, panY + lh + 30);
     }
-  }, [size, view, doc, layout, pctx, bitmap, settings.showGuides, editingTextId, W, H, profile]);
+  }, [size, view, doc, layout, pctx, bitmap, printBmp, settings.showGuides, editingTextId, W, H, profile]);
 
   // ---------------------------------------------------------------- interaction
   const toMm = (e: { clientX: number; clientY: number }) => {
@@ -730,6 +746,13 @@ export function EditorCanvas() {
             setEditCell(null);
           }}
         />
+      )}
+
+      {printBmp.spillDots > 0 && (
+        <div className="floating clip-warning" role="status">
+          <AlertTriangle size={14} />
+          Parts shown in red are outside the printable area and will be cut off.
+        </div>
       )}
 
       <div className="floating zoom" onPointerDown={(e) => e.stopPropagation()}>

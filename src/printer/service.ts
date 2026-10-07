@@ -113,9 +113,14 @@ function splitBitmap(bmp: PrintBitmap, doc: LabelDoc, dpm: number): PrintBitmap[
     const lead = k === 0 ? 0 : pad;
     const tail = k === bounds.length - 2 ? 0 : pad;
     const w = b - a + lead + tail;
-    const bits = new Uint8Array(w * bmp.height);
-    for (let r = 0; r < bmp.height; r++) bits.set(bmp.bits.subarray(r * bmp.width + a, r * bmp.width + b), r * w + lead);
-    out.push({ width: w, height: bmp.height, bits, lengthMm: w / dpm });
+    const slice = (src: Uint8Array, rows: number) => {
+      const dst = new Uint8Array(w * rows);
+      for (let r = 0; r < rows; r++) dst.set(src.subarray(r * bmp.width + a, r * bmp.width + b), r * w + lead);
+      return dst;
+    };
+    const spill = bmp.spill && slice(bmp.spill, bmp.margin * 2);
+    const spillDots = spill ? spill.reduce((n, v) => n + v, 0) : 0;
+    out.push({ width: w, height: bmp.height, bits: slice(bmp.bits, bmp.height), lengthMm: w / dpm, margin: bmp.margin, spill: spillDots ? spill : null, spillDots });
   }
   return out;
 }

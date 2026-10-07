@@ -97,7 +97,23 @@ function measureLine(line: string, st: TextStyleLike): number {
   return c.measureText(line).width / 100;
 }
 
+/** How far a line's glyphs actually reach above and below the baseline, in em. */
+function measureInk(line: string, st: TextStyleLike): { ascent: number; descent: number } {
+  // Measured large: browsers round glyph bounds to whole pixels.
+  const c = mctx();
+  c.font = fontString(st.font, 1000, st.bold, st.italic);
+  const m = c.measureText(line);
+  return { ascent: (m.actualBoundingBoxAscent || 0) / 1000, descent: (m.actualBoundingBoxDescent || 0) / 1000 };
+}
+
 const DESCENDERS = /[gjpqyQ,;()[\]{}|/\\@_µ]/;
+
+/**
+ * Space kept clear above and below text, in mm (under one dot at 180 dpi).
+ * Browsers snap glyph outlines to the pixel grid at print size, which can
+ * make text render up to half a dot taller than measured.
+ */
+const TEXT_SAFETY = 0.1;
 
 interface TextFit {
   lines: string[];
@@ -105,6 +121,8 @@ interface TextFit {
   width: number;
   blockH: number;
   cap: number;
+  /** Distance from the top of the block to the first baseline, in em. */
+  ascent: number;
   hasDesc: boolean;
 }
 
@@ -123,13 +141,18 @@ export function fitText(
   const { cap, desc } = fontMetrics(st.font, st.bold, st.italic);
   const hasDesc = DESCENDERS.test(text);
   const n = Math.max(1, lines.length);
-  const unitH = (n - 1) * st.lineHeight + cap + (hasDesc ? desc : 0);
+  // Round glyphs (O, S, 3) overshoot the cap height and baseline, and ascenders
+  // (b, d, l) rise above it, so size the block from the actual glyphs. The cap
+  // and descender metrics stay the minimum so typing doesn't make text jump.
+  const ascent = Math.max(cap, measureInk(lines[0] ?? '', st).ascent);
+  const descent = Math.max(hasDesc ? desc : 0, measureInk(lines[n - 1] ?? '', st).descent);
+  const unitH = (n - 1) * st.lineHeight + ascent + descent;
   const widths = lines.map((l) => measureLine(l, st));
   const maxChars = Math.max(0, ...lines.map((l) => Array.from(l).length - 1));
   const unitW = Math.max(0, ...widths);
   let em: number;
   if (autoSize) {
-    em = boxH / unitH;
+    em = Math.max(0, boxH - 2 * TEXT_SAFETY) / unitH;
     if (!autoWidth && unitW > 0) em = Math.min(em, (boxW - st.letterSpacing * maxChars) / unitW);
     em = Math.max(0.5, em);
   } else {
@@ -141,6 +164,7 @@ export function fitText(
     width: unitW * em + st.letterSpacing * maxChars,
     blockH: unitH * em,
     cap,
+    ascent,
     hasDesc,
   };
 }
@@ -245,7 +269,8 @@ function drawTextBox(ctx: CanvasRenderingContext2D, a: DrawTextArgs) {
   const fit = fitText(a.text, a.st, w / s, h / s, a.autoSize, a.sizePt, false, a.stacked);
   const em = fit.em * s;
   const blockH = fit.blockH * s;
-  const top = a.vAlign === 'top' ? y : a.vAlign === 'bottom' ? y + h - blockH : y + (h - blockH) / 2;
+  const safe = TEXT_SAFETY * s;
+  const top = a.vAlign === 'top' ? y + safe : a.vAlign === 'bottom' ? y + h - blockH - safe : y + (h - blockH) / 2;
   ctx.font = fontString(a.st.font, em, a.st.bold, a.st.italic);
   const ls = a.st.letterSpacing * s;
   (ctx as unknown as { letterSpacing: string }).letterSpacing = `${ls}px`;
@@ -256,7 +281,7 @@ function drawTextBox(ctx: CanvasRenderingContext2D, a: DrawTextArgs) {
   ctx.textAlign = align;
   const tx = align === 'left' ? x : align === 'right' ? x + w : x + w / 2;
   fit.lines.forEach((line, i) => {
-    const baseline = top + fit.cap * em + i * a.st.lineHeight * em;
+    const baseline = top + fit.ascent * em + i * a.st.lineHeight * em;
     // letterSpacing adds trailing space after the last glyph; compensate for alignment.
     const shift = align === 'center' ? ls / 2 : align === 'right' ? ls : 0;
     ctx.fillText(line, tx + shift, baseline);
@@ -729,6 +754,14 @@ export interface PrintBitmap {
   height: number;
   bits: Uint8Array;
   lengthMm: number;
+  /** Rows of tape above and below the printable band, which the head can't reach. */
+  margin: number;
+  /**
+   * Ink that falls in those margins and won't print: `margin` rows above the
+   * band then `margin` rows below it, `width` columns each. Null when none.
+   */
+  spill: Uint8Array | null;
+  spillDots: number;
 }
 
 /**
@@ -745,40 +778,51 @@ export function renderPrintBitmap(
   const dpm = dpi / MM_PER_INCH;
   const layout = computeLayout(doc, pctx);
   const [W, H] = designSize(doc, layout.length);
-  const cw = Math.max(1, Math.round(W * dpm));
-  const ch = Math.max(1, Math.round(H * dpm));
+  const portrait = doc.orientation === 'portrait';
+  const band = printableBand(doc.media.kind, doc.media.width, dpi, headPins);
+  const rows = band.dots;
+  // Shift the design by under half a dot so the printable band starts exactly
+  // on a dot row; otherwise content flush with its edge loses a row.
+  const margin = Math.round(band.top * dpm);
+  const shift = margin - band.top * dpm;
+  const th = margin * 2 + rows; // across tape
+  const tw = Math.max(1, Math.round((portrait ? H : W) * dpm)); // along tape
+  const cw = portrait ? th : tw;
+  const ch = portrait ? tw : th;
   const canvas = document.createElement('canvas');
   canvas.width = cw;
   canvas.height = ch;
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, cw, ch);
+  ctx.translate(portrait ? shift : 0, portrait ? 0 : shift);
   renderLabel(ctx, doc, layout, { scale: dpm, ink: '#000', paper: '#fff', pctx, dpm });
-  const img = ctx.getImageData(0, 0, cw, ch);
+  const px = ctx.getImageData(0, 0, cw, ch).data;
 
-  // Tape orientation: columns along the tape.
-  const portrait = doc.orientation === 'portrait';
-  const tw = portrait ? ch : cw; // along tape
-  const th = portrait ? cw : ch; // across tape
-  const band = printableBand(doc.media.kind, doc.media.width, dpi, headPins);
-  const rows = band.dots;
-  const rowOffset = Math.max(0, Math.round((th - rows) / 2));
   const bits = new Uint8Array(tw * rows);
-  const px = img.data;
-  for (let r = 0; r < rows; r++) {
-    const tr = r + rowOffset; // row across the tape, 0 = top edge
-    if (tr >= th) continue;
+  let spill: Uint8Array | null = null;
+  let spillDots = 0;
+  for (let tr = 0; tr < th; tr++) {
+    // tr is the row across the tape, 0 = top edge.
+    const inBand = tr >= margin && tr < margin + rows;
     for (let c = 0; c < tw; c++) {
       // Portrait designs are rotated 90° counter-clockwise onto the tape.
       const dx = portrait ? th - 1 - tr : c;
       const dy = portrait ? c : tr;
       const i = (dy * cw + dx) * 4;
-      const lum = px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114;
-      if (lum < 128) bits[r * tw + (opts.mirror ? tw - 1 - c : c)] = 1;
+      if (px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114 >= 128) continue;
+      const col = opts.mirror ? tw - 1 - c : c;
+      if (inBand) {
+        bits[(tr - margin) * tw + col] = 1;
+      } else {
+        spill ??= new Uint8Array(tw * margin * 2);
+        spill[(tr < margin ? tr : tr - rows) * tw + col] = 1;
+        spillDots++;
+      }
     }
   }
   if (opts.cutMark) {
     for (let r = 0; r < rows; r++) if (r % 6 < 3) bits[r * tw + tw - 1] = 1;
   }
-  return { width: tw, height: rows, bits, lengthMm: layout.length };
+  return { width: tw, height: rows, bits, lengthMm: layout.length, margin, spill, spillDots };
 }
