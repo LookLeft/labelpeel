@@ -75,6 +75,11 @@ Because the format isn't documented, **File → Import .lbx** imports it on a be
 
 Anything it can't map is listed as a warning after import. The app doesn't write `.lbx`; it saves its own `.ptlabel` format.
 
+## iPhone and iPad
+
+Browsers on iOS can't reach printers, so `ios/` has a small native app that
+wraps this one and adds a Bluetooth bridge. See [ios/README.md](ios/README.md).
+
 ## Development
 
 ```sh

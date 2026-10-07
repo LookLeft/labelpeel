@@ -64,6 +64,8 @@ export function migrate(input: Partial<LabelDoc>): LabelDoc {
 }
 
 export type LeftTab = 'insert' | 'templates' | 'clipart' | 'data' | 'layers' | 'library';
+/** Which side panel is shown below the canvas on narrow screens. */
+export type MobilePanel = 'tools' | 'properties';
 
 interface EditorState {
   doc: LabelDoc;
@@ -85,6 +87,7 @@ interface EditorState {
   fitRequest: number;
   editingTextId: string | null;
   leftTab: LeftTab;
+  mobilePanel: MobilePanel;
   wizardOpen: boolean;
   printOpen: boolean;
   printerOpen: boolean;
@@ -148,6 +151,7 @@ export const useEditor = create<EditorState>((set, get) => {
     fitRequest: 0,
     editingTextId: null,
     leftTab: 'insert',
+    mobilePanel: 'tools',
     wizardOpen: !loadAutosave(),
     printOpen: false,
     printerOpen: false,

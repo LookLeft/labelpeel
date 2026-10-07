@@ -1,0 +1,51 @@
+# Generate the Xcode project with XcodeGen (brew install xcodegen), from this
+# folder: `xcodegen`. ./build-web.sh does both steps.
+name: PtouchStudio
+options:
+  bundleIdPrefix: com.alexbrazier
+  deploymentTarget:
+    iOS: "16.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  PtouchStudio:
+    type: application
+    platform: iOS
+    sources:
+      - path: PtouchStudio
+      # The built web app (copied from ../dist by build-web.sh), bundled as a
+      # folder so its relative paths stay intact.
+      - path: Web
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.alexbrazier.ptouchstudio
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: NO
+    info:
+      path: PtouchStudio/Info.plist
+      properties:
+        CFBundleDisplayName: P-touch Studio
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # Brother's printer command protocol over Apple's External Accessory
+        # framework (Bluetooth Classic printers are MFi accessories on iOS).
+        UISupportedExternalAccessoryProtocols:
+          - com.brother.ptcbp
+        NSBluetoothAlwaysUsageDescription: P-touch Studio connects to your Brother label printer over Bluetooth.

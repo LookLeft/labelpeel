@@ -54,7 +54,7 @@ export function TopBar() {
         <div className="brand-mark">
           <Tag size={15} />
         </div>
-        <span>P-touch Studio</span>
+        <span className="brand-name">P-touch Studio</span>
       </div>
       <Menu label="File">
         {(close) => (
@@ -125,11 +125,11 @@ export function TopBar() {
       <div className="spacer" />
       <button className="btn" onClick={() => st().set({ printerOpen: true })} title="Printer connection">
         <span className={`dot ${transport ? (status?.errors.length ? 'err' : 'on') : ''}`} />
-        {transport ? (transport.kind === 'usb' ? <Usb size={14} /> : <Bluetooth size={14} />) : null}
-        {transport ? `${detected?.name ?? 'Printer'}${status ? ` · ${status.mediaWidth} mm` : ''}` : 'Connect printer'}
+        {transport ? (transport.kind === 'usb' ? <Usb size={14} /> : <Bluetooth size={14} />) : <Bluetooth size={14} className="mobile-only" />}
+        <span className="btn-label">{transport ? `${detected?.name ?? 'Printer'}${status ? ` · ${status.mediaWidth} mm` : ''}` : 'Connect printer'}</span>
       </button>
       <button className="btn primary" onClick={() => st().set({ printOpen: true })} title={`Print (${mod}P)`}>
-        <Printer size={15} /> Print
+        <Printer size={15} /> <span className="btn-label">Print</span>
       </button>
     </header>
   );

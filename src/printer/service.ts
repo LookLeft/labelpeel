@@ -8,6 +8,7 @@ import { buildFeedCutJob, buildJob, cmdInit, cmdInvalidate, cmdStatusRequest, co
 import { profileById, profileByPid, type PrinterProfile } from './profiles';
 import { bitmapToRaster } from './raster';
 import { findStatus, type PrinterStatus } from './status';
+import { connectNative } from './native';
 import { connectSerial, connectUsb, type Transport } from './transport';
 
 export interface LogLine {
@@ -40,12 +41,17 @@ export const usePrinter = create<PrinterState>((set, get) => ({
 
 const log = (level: LogLine['level'], text: string) => usePrinter.getState().addLog(level, text);
 
-export async function connect(kind: 'usb' | 'bluetooth' | 'serial'): Promise<Transport> {
+export async function connect(kind: 'usb' | 'bluetooth' | 'serial' | 'native'): Promise<Transport> {
   const st = usePrinter.getState();
   if (st.transport) await disconnect();
   usePrinter.setState({ connecting: true });
   try {
-    const t = kind === 'usb' ? await connectUsb() : await connectSerial({ bluetoothOnly: kind === 'bluetooth' });
+    const t =
+      kind === 'native'
+        ? await connectNative()
+        : kind === 'usb'
+          ? await connectUsb()
+          : await connectSerial({ bluetoothOnly: kind === 'bluetooth' });
     t.onDisconnect = () => {
       log('error', 'Printer disconnected.');
       usePrinter.setState({ transport: null, status: null });

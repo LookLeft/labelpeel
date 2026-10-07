@@ -3,6 +3,7 @@ import { useEditor } from '../state/store';
 import { connect, disconnect, feedAndCut, refreshStatus, usePrinter, effectiveProfile } from '../printer/service';
 import { PROFILES } from '../printer/profiles';
 import { supportsSerial, supportsUsb } from '../printer/transport';
+import { supportsNative } from '../printer/native';
 import { Check, Field, Select } from './fields';
 import { findTape } from '../model/media';
 import { TAPE_RGB, TEXT_RGB } from '../printer/status';
@@ -68,26 +69,39 @@ export function PrinterPanel() {
           {!transport ? (
             <>
               <div className="section-title">Connect</div>
-              <div style={{ display: 'grid', gap: 8 }}>
-                <button className="btn block" disabled={!supportsSerial() || connecting} onClick={() => run(() => connect('bluetooth'))}>
-                  <Bluetooth size={15} /> Bluetooth (pair in your OS first)
-                </button>
-                <button className="btn block" disabled={!supportsUsb() || connecting} onClick={() => run(() => connect('usb'))}>
-                  <Usb size={15} /> USB cable
-                </button>
-                <button className="btn block" disabled={!supportsSerial() || connecting} onClick={() => run(() => connect('serial'))}>
-                  <Cable size={15} /> Serial / Bluetooth COM port
-                </button>
-              </div>
-              {!supportsSerial() && !supportsUsb() && (
-                <div className="callout err" style={{ marginTop: 12 }}>
-                  This browser cannot talk to printers. Use Chrome or Edge on Windows, macOS, Linux or ChromeOS (or Chrome on Android for USB). You can still design labels and download print files.
-                </div>
+              {supportsNative() ? (
+                <>
+                  <button className="btn block" disabled={connecting} onClick={() => run(() => connect('native'))}>
+                    <Bluetooth size={15} /> Bluetooth printer
+                  </button>
+                  <div className="hint" style={{ marginTop: 12 }}>
+                    Turn the printer on. If it isn't paired yet, iOS shows a list of nearby printers to pair with. If it's connected to another phone or app, disconnect it there first.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    <button className="btn block" disabled={!supportsSerial() || connecting} onClick={() => run(() => connect('bluetooth'))}>
+                      <Bluetooth size={15} /> Bluetooth (pair in your OS first)
+                    </button>
+                    <button className="btn block" disabled={!supportsUsb() || connecting} onClick={() => run(() => connect('usb'))}>
+                      <Usb size={15} /> USB cable
+                    </button>
+                    <button className="btn block" disabled={!supportsSerial() || connecting} onClick={() => run(() => connect('serial'))}>
+                      <Cable size={15} /> Serial / Bluetooth COM port
+                    </button>
+                  </div>
+                  {!supportsSerial() && !supportsUsb() && (
+                    <div className="callout err" style={{ marginTop: 12 }}>
+                      This browser cannot talk to printers. Use Chrome or Edge on Windows, macOS, Linux or ChromeOS (or Chrome on Android for USB). You can still design labels and download print files.
+                    </div>
+                  )}
+                  <div className="hint" style={{ marginTop: 12 }}>
+                    <b>Bluetooth:</b> the PT-E560BT uses Bluetooth Classic. Pair it in your system settings, then choose it here (Chrome 117+ lists paired printers directly; on Windows you can also pick its outgoing COM port).<br />
+                    <b>USB:</b> works on macOS, Linux, ChromeOS and Android. On Windows the Brother driver holds the USB device, so use Bluetooth there.
+                  </div>
+                </>
               )}
-              <div className="hint" style={{ marginTop: 12 }}>
-                <b>Bluetooth:</b> the PT-E560BT uses Bluetooth Classic. Pair it in your system settings, then choose it here (Chrome 117+ lists paired printers directly; on Windows you can also pick its outgoing COM port).<br />
-                <b>USB:</b> works on macOS, Linux, ChromeOS and Android. On Windows the Brother driver holds the USB device, so use Bluetooth there.
-              </div>
             </>
           ) : (
             <>

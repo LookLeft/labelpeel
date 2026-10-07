@@ -6,7 +6,7 @@
 import { BROTHER_VID } from './profiles';
 
 export interface Transport {
-  kind: 'usb' | 'serial';
+  kind: 'usb' | 'serial' | 'native';
   label: string;
   usbProductId?: number;
   write(data: Uint8Array): Promise<void>;

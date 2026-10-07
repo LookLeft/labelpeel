@@ -75,6 +75,12 @@ textarea {
     'left main right'
     'status status status';
   height: 100%;
+  height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.mobile-switch,
+.mobile-only {
+  display: none;
 }
 
 /* ---------- top bar */
@@ -211,6 +217,8 @@ textarea {
   box-shadow: var(--shadow);
   padding: 4px;
   z-index: 50;
+  max-height: calc(100dvh - 60px);
+  overflow-y: auto;
 }
 .menu-item {
   display: flex;
@@ -710,6 +718,7 @@ textarea {
   box-shadow: var(--shadow);
   width: min(980px, 100%);
   max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -944,19 +953,133 @@ textarea {
   }
 }
 @media (max-width: 860px) {
+  /* Phones / narrow tablets: canvas on top, one side panel below it, chosen by .mobile-switch. */
   .app {
-    grid-template-columns: 1fr;
-    grid-template-rows: 48px 1fr 40vh 28px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 48px minmax(140px, 1fr) auto minmax(0, 45%) auto;
     grid-template-areas:
       'top'
       'main'
-      'right'
+      'switch'
+      'panel'
       'status';
   }
-  .left {
+  .left,
+  .right {
+    grid-area: panel;
+    border: 0;
+  }
+  .app.mp-tools .right,
+  .app.mp-properties .left {
     display: none;
   }
+  .mobile-switch {
+    display: flex;
+    grid-area: switch;
+    margin: 0;
+    border-width: 1px 0;
+    border-radius: 0;
+    padding: 4px 6px;
+    background: var(--bg-2);
+  }
+  .mobile-switch button {
+    height: 32px;
+    font-size: 13px;
+  }
+  .mobile-only {
+    display: inline-block;
+  }
+  .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tab {
+    flex: 0 0 auto;
+  }
+
+  .topbar {
+    gap: 2px;
+    padding: 0 6px;
+  }
+  .brand {
+    margin-right: 2px;
+  }
+  .brand-name,
+  .btn-label,
+  .topbar .sep {
+    display: none;
+  }
+  .topbar .menu > .btn {
+    padding: 0 6px;
+  }
+  .doc-name {
+    flex: 1 1 60px;
+    min-width: 40px;
+    max-width: none;
+  }
+  .topbar .spacer {
+    display: none;
+  }
+  .topbar .btn:not(.icon):has(.btn-label) {
+    padding: 0 9px;
+  }
+
+  .statusbar {
+    gap: 12px;
+    padding: 4px 10px;
+  }
+  .status-extra {
+    display: none;
+  }
+
+  /* iOS zooms the page when focusing inputs below 16px. */
+  .input,
+  .select,
+  .textarea,
+  .doc-name,
+  .inline-editor {
+    font-size: 16px;
+  }
+
+  .modal-back {
+    padding: 0;
+  }
+  .modal,
+  .modal.narrow {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+    border: 0;
+  }
+  .modal-head {
+    flex-wrap: wrap;
+    padding: 10px 12px;
+  }
+  .modal-body {
+    padding: 14px 12px;
+  }
+  .modal-foot {
+    flex-wrap: wrap;
+    padding: 10px 12px;
+  }
+  .row.tight {
+    flex-wrap: wrap;
+  }
+  .type-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
   .wizard-split {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .floating.records {
+    left: 12px;
+    transform: none;
+  }
+}
+@media (max-width: 420px) {
+  .brand {
+    display: none;
   }
 }

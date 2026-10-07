@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { CheckCircle2, AlertTriangle, Info } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Info, Shapes, SlidersHorizontal } from 'lucide-react';
 import { TopBar } from './ui/TopBar';
 import { LeftPanel } from './ui/LeftPanel';
 import { EditorCanvas } from './ui/Canvas';
@@ -84,7 +84,7 @@ function StatusBar() {
       <span>
         <span className={`dot ${transport ? 'on' : ''}`} /> {transport ? transport.label : 'No printer connected'}
       </span>
-      <span>
+      <span className="status-extra">
         Model <b>{profile.name}</b>
       </span>
       <span>
@@ -94,8 +94,25 @@ function StatusBar() {
         Length <b>{length.toFixed(1)} mm</b>
       </span>
       <span className="spacer" />
-      <span>Double-click text to edit · Space+drag to pan · Ctrl+wheel to zoom</span>
+      <span className="status-extra">Double-click text to edit · Space+drag to pan · Ctrl+wheel to zoom</span>
     </footer>
+  );
+}
+
+/** Switches which side panel sits below the canvas on narrow screens; hidden on desktop. */
+function MobilePanelSwitch() {
+  const panel = useEditor((s) => s.mobilePanel);
+  const count = useEditor((s) => s.selection.length);
+  const set = useEditor((s) => s.set);
+  return (
+    <nav className="mobile-switch seg">
+      <button className={panel === 'tools' ? 'on' : ''} onClick={() => set({ mobilePanel: 'tools' })}>
+        <Shapes size={14} /> Add &amp; layers
+      </button>
+      <button className={panel === 'properties' ? 'on' : ''} onClick={() => set({ mobilePanel: 'properties' })}>
+        <SlidersHorizontal size={14} /> {count === 0 ? 'Label' : count === 1 ? 'Selection' : `${count} selected`}
+      </button>
+    </nav>
   );
 }
 
@@ -123,6 +140,16 @@ export default function App() {
     mq.addEventListener('change', apply);
     return () => mq.removeEventListener('change', apply);
   }, [theme]);
+  useEffect(
+    () =>
+      // On phones, selecting something on the canvas (or inserting it) brings up its properties.
+      useEditor.subscribe((s, prev) => {
+        if (s.selection.length && !prev.selection.length && s.leftTab !== 'layers' && matchMedia('(max-width: 860px)').matches) {
+          if (s.mobilePanel !== 'properties') s.set({ mobilePanel: 'properties' });
+        }
+      }),
+    [],
+  );
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
       if (useEditor.getState().dirty && useEditor.getState().fileName) e.preventDefault();
@@ -130,13 +157,15 @@ export default function App() {
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, []);
+  const mobilePanel = useEditor((s) => s.mobilePanel);
   return (
-    <div className="app">
+    <div className={`app mp-${mobilePanel}`}>
       <TopBar />
       <LeftPanel />
       <main className="main">
         <EditorCanvas />
       </main>
+      <MobilePanelSwitch />
       <Inspector />
       <StatusBar />
       <Wizard />
