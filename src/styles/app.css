@@ -912,6 +912,49 @@ textarea {
 .key-join {
   border-left: 1px dotted var(--text-3);
 }
+.calibrate-stage {
+  display: grid;
+  gap: 18px;
+  justify-items: start;
+  /* Room for the ruler's first and last numbers. */
+  padding: 16px 8px 4px;
+  overflow: hidden;
+}
+.calibrate-card {
+  border: 2px dashed var(--accent);
+  display: grid;
+  place-items: center;
+  color: var(--text-3);
+  font-size: 12px;
+  box-sizing: border-box;
+}
+.calibrate-ruler {
+  position: relative;
+  height: 34px;
+  border-top: 1px solid var(--text);
+}
+.calibrate-ruler span {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 6px;
+  background: var(--text);
+}
+.calibrate-ruler span.half {
+  height: 10px;
+}
+.calibrate-ruler span.cm {
+  height: 16px;
+}
+.calibrate-ruler b {
+  position: absolute;
+  top: 17px;
+  left: 0;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-2);
+}
 .progress {
   height: 6px;
   background: var(--bg-2);

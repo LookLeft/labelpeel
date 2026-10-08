@@ -8,6 +8,7 @@ import { Wizard } from './ui/Wizard';
 import { PrintDialog } from './ui/PrintDialog';
 import { PrinterPanel } from './ui/PrinterPanel';
 import { AboutDialog } from './ui/AboutDialog';
+import { CalibrateDialog } from './ui/CalibrateDialog';
 import { useEditor, copySelection, pasteClipboard } from './state/store';
 import { usePrinter, effectiveProfile } from './printer/service';
 import { openFile, save, insertText } from './ui/actions';
@@ -22,8 +23,8 @@ function useShortcuts() {
       const t = e.target as HTMLElement;
       if (t.closest('input, textarea, select, [contenteditable]')) return;
       const s = useEditor.getState();
-      if (s.wizardOpen || s.printOpen || s.printerOpen || s.aboutOpen) {
-        if (e.key === 'Escape') s.set({ wizardOpen: false, printOpen: false, printerOpen: false, aboutOpen: false });
+      if (s.wizardOpen || s.printOpen || s.printerOpen || s.aboutOpen || s.calibrateOpen) {
+        if (e.key === 'Escape') s.set({ wizardOpen: false, printOpen: false, printerOpen: false, aboutOpen: false, calibrateOpen: false });
         return;
       }
       const mod = e.ctrlKey || e.metaKey;
@@ -156,8 +157,8 @@ export default function App() {
     // Called by the Android app's back button; true means something was closed.
     (window as unknown as { __labelsmithBack?: () => boolean }).__labelsmithBack = () => {
       const s = useEditor.getState();
-      if (s.wizardOpen || s.printOpen || s.printerOpen || s.aboutOpen || s.editingTextId) {
-        s.set({ wizardOpen: false, printOpen: false, printerOpen: false, aboutOpen: false, editingTextId: null });
+      if (s.wizardOpen || s.printOpen || s.printerOpen || s.aboutOpen || s.calibrateOpen || s.editingTextId) {
+        s.set({ wizardOpen: false, printOpen: false, printerOpen: false, aboutOpen: false, calibrateOpen: false, editingTextId: null });
         return true;
       }
       if (s.selection.length) {
@@ -189,6 +190,7 @@ export default function App() {
       <PrintDialog />
       <PrinterPanel />
       <AboutDialog />
+      <CalibrateDialog />
       <Toast />
     </div>
   );

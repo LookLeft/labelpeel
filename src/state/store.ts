@@ -15,6 +15,8 @@ export interface Settings {
   theme: 'dark' | 'light' | 'system';
   showGuides: boolean;
   snap: boolean;
+  /** Screen calibration for "actual size": device pixels per real mm (null = not calibrated). */
+  screenDevicePxPerMm?: number | null;
 }
 
 const defaultSettings: Settings = {
@@ -92,6 +94,7 @@ interface EditorState {
   printOpen: boolean;
   printerOpen: boolean;
   aboutOpen: boolean;
+  calibrateOpen: boolean;
   settings: Settings;
   toast: { id: number; text: string; kind: 'info' | 'error' | 'success' } | null;
 
@@ -157,6 +160,7 @@ export const useEditor = create<EditorState>((set, get) => {
     printOpen: false,
     printerOpen: false,
     aboutOpen: false,
+    calibrateOpen: false,
     settings: loadSettings(),
     toast: null,
 

@@ -23,7 +23,8 @@ final class WebViewController: NSViewController, WKUIDelegate, WKNavigationDeleg
         config.userContentController.addScriptMessageHandler(bridge, contentWorld: .page, name: "labelsmith")
         // Lets the page tell the Mac app from the iPad app (iPads also report a Mac platform).
         config.userContentController.addUserScript(WKUserScript(
-            source: "window.__labelsmithPlatform = 'macos';", injectionTime: .atDocumentStart, forMainFrameOnly: true))
+            source: "window.__labelsmithPlatform = 'macos';" + Self.screenScript(NSScreen.main),
+            injectionTime: .atDocumentStart, forMainFrameOnly: true))
 
         webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 1280, height: 820), configuration: config)
         webView.uiDelegate = self
@@ -43,6 +44,34 @@ final class WebViewController: NSViewController, WKUIDelegate, WKNavigationDeleg
                 baseURL: nil)
         } else {
             webView.load(URLRequest(url: URL(string: "\(BundleSchemeHandler.scheme)://app/index.html")!))
+        }
+    }
+
+    // MARK: Screen size, for "actual size" zoom
+
+    /// CSS pixels per real millimetre on a screen. WebKit's CSS pixels are the
+    /// screen's points, and the display reports its physical size.
+    static func pointsPerMm(_ screen: NSScreen?) -> Double? {
+        guard let screen,
+              let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
+        else { return nil }
+        let mm = CGDisplayScreenSize(id)
+        // Some external displays and projectors don't report a usable size.
+        guard mm.width > 50 else { return nil }
+        return screen.frame.width / mm.width
+    }
+
+    static func screenScript(_ screen: NSScreen?) -> String {
+        guard let ppm = pointsPerMm(screen) else { return "window.__labelsmithScreen = undefined;" }
+        return "window.__labelsmithScreen = { pxPerMm: \(ppm) };"
+    }
+
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        // Moving the window to another display changes the scale.
+        NotificationCenter.default.addObserver(forName: NSWindow.didChangeScreenNotification, object: view.window, queue: .main) { [weak self] _ in
+            guard let self else { return }
+            self.webView.evaluateJavaScript(Self.screenScript(self.view.window?.screen))
         }
     }
 

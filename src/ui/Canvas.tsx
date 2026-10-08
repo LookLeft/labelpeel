@@ -6,6 +6,7 @@ import { enumeratePages } from '../model/pages';
 import { CLEAR_LAMINATE, computeLayout, renderLabel, renderPrintBitmap, type Box } from '../render/render';
 import { onAssetsChanged } from '../render/assets';
 import { onFontsChanged } from '../render/fonts';
+import { actualPxPerMm, isCalibrated } from './screen';
 import { effectiveProfile } from '../printer/service';
 import type { GridElement, LabelElement, TableElement } from '../model/types';
 import { areaAt, cellAtPoint, tableEdges } from '../model/table';
@@ -745,7 +746,8 @@ export function EditorCanvas() {
       const kind = (ev as CustomEvent).detail as 'in' | 'out' | 'fit' | '100';
       if (kind === 'fit') return fit();
       setView((v) => {
-        const zoom = kind === '100' ? 96 / 25.4 : Math.max(0.5, Math.min(80, v.zoom * (kind === 'in' ? 1.25 : 0.8)));
+        // 100% is real size: 1 mm on screen is 1 mm on the label (see ui/screen.ts).
+        const zoom = kind === '100' ? actualPxPerMm(useEditor.getState().settings) : Math.max(0.5, Math.min(80, v.zoom * (kind === 'in' ? 1.25 : 0.8)));
         const cx = size.w / 2;
         const cy = size.h / 2;
         const mx = (cx - v.panX) / v.zoom;
@@ -895,7 +897,9 @@ export function EditorCanvas() {
         <button className="btn ghost icon sm" title="Zoom out (Ctrl -)" onClick={() => window.dispatchEvent(new CustomEvent('labelsmith-zoom', { detail: 'out' }))}>
           <Minus size={15} />
         </button>
-        <span className="pct">{Math.round((view.zoom / (96 / 25.4)) * 100)}%</span>
+        <span className="pct" title={isCalibrated(settings) ? '100% is actual size' : 'Calibrate in View → Calibrate actual size for 100% to match real size'}>
+          {Math.round((view.zoom / actualPxPerMm(settings)) * 100)}%
+        </span>
         <button className="btn ghost icon sm" title="Zoom in (Ctrl +)" onClick={() => window.dispatchEvent(new CustomEvent('labelsmith-zoom', { detail: 'in' }))}>
           <Plus size={15} />
         </button>

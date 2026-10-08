@@ -83,6 +83,7 @@ export function TopBar() {
             <Item label="Zoom out" kbd={`${mod}-`} onClick={() => { close(); window.dispatchEvent(new CustomEvent('labelsmith-zoom', { detail: 'out' })); }} />
             <Item label="Fit label" kbd={`${mod}0`} onClick={() => { close(); window.dispatchEvent(new CustomEvent('labelsmith-zoom', { detail: 'fit' })); }} />
             <Item label="Actual size (100%)" kbd={`${mod}1`} onClick={() => { close(); window.dispatchEvent(new CustomEvent('labelsmith-zoom', { detail: '100' })); }} />
+            <Item label="Calibrate actual size…" onClick={() => { close(); st().set({ calibrateOpen: true }); }} />
             <div className="menu-sep" />
             <Item label={`${st().dotPreview ? '✓ ' : ''}Dot preview (exact print)`} onClick={() => { close(); st().set({ dotPreview: !st().dotPreview }); }} />
             <Item label={`${st().settings.showGuides ? '✓ ' : ''}Show guides`} onClick={() => { close(); st().setSettings({ showGuides: !st().settings.showGuides }); }} />
