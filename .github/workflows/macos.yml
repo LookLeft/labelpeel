@@ -86,15 +86,20 @@ jobs:
       - name: Build
         run: |
           if [ "$SIGNED" = 1 ]; then
-            SIGNING=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=Developer ID Application" "DEVELOPMENT_TEAM=$TEAM_ID" "OTHER_CODE_SIGN_FLAGS=--timestamp")
+            # No get-task-allow (debugger) entitlement, which notarization rejects;
+            # xcodebuild adds it to plain "build" products by default.
+            SIGNING=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=Developer ID Application" "DEVELOPMENT_TEAM=$TEAM_ID" "OTHER_CODE_SIGN_FLAGS=--timestamp" CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO)
           else
             SIGNING=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=)
           fi
           xcodebuild -project macos/LabelsmithMac.xcodeproj -scheme Labelsmith -configuration Release \
             -derivedDataPath "$RUNNER_TEMP/dd" \
             MARKETING_VERSION="${{ steps.version.outputs.name }}" CURRENT_PROJECT_VERSION="${{ steps.version.outputs.build }}" \
+            ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
             "${SIGNING[@]}" build
           codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP/dd/Build/Products/Release/Labelsmith.app"
+          # Runs on Apple silicon and Intel Macs.
+          lipo -archs "$RUNNER_TEMP/dd/Build/Products/Release/Labelsmith.app/Contents/MacOS/Labelsmith"
 
       - name: Package
         run: |
@@ -110,7 +115,16 @@ jobs:
         if: env.SIGNED == '1' && env.APPLE_API_KEY_BASE64 != ''
         run: |
           echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
-          xcrun notarytool submit "$DMG" --key "$RUNNER_TEMP/AuthKey.p8" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID" --wait --timeout 30m
+          AUTH=(--key "$RUNNER_TEMP/AuthKey.p8" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID")
+          xcrun notarytool submit "$DMG" "${AUTH[@]}" --wait --timeout 30m --output-format json | tee "$RUNNER_TEMP/notary.json"
+          ID="$(plutil -extract id raw "$RUNNER_TEMP/notary.json")"
+          STATUS="$(plutil -extract status raw "$RUNNER_TEMP/notary.json")"
+          if [ "$STATUS" != "Accepted" ]; then
+            # Apple's reasons for rejecting it.
+            xcrun notarytool log "$ID" "${AUTH[@]}"
+            echo "::error::Notarization $STATUS. See Apple's log above."
+            exit 1
+          fi
           xcrun stapler staple "$DMG"
           spctl --assess --type open --context context:primary-signature --verbose "$DMG"
           rm "$RUNNER_TEMP/AuthKey.p8"
