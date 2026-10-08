@@ -139,26 +139,41 @@ export interface PreparedJob {
   options: JobOptions;
   chunks: Uint8Array[];
   bytes: number;
+  /** Labels left out of a multi-label job because they're for different tape. */
+  skipped: string[];
 }
 
+/**
+ * Builds a print job for `doc`, or for several labels (e.g. all open tabs) in
+ * one job: each keeps its own records, copies, mirroring and splitting, while
+ * the cut settings for the whole strip come from `doc`. Labels for a different
+ * tape than `doc` can't share the job and are listed in `skipped`.
+ */
 export async function prepareJob(
   doc: LabelDoc,
   profile: PrinterProfile,
   minimal: boolean,
   dateFormat: string,
   range?: { from: number; to: number },
+  labels?: LabelDoc[],
 ): Promise<PreparedJob> {
-  await preloadDoc(doc);
-  const all = enumeratePages(doc, new Date(), dateFormat);
-  const pages = range ? all.slice(Math.max(0, range.from), Math.min(all.length, range.to + 1)) : all;
+  const tape = findTape(doc.media.kind, doc.media.width);
+  const sameTape = (d: LabelDoc) => d.media.kind === doc.media.kind && findTape(d.media.kind, d.media.width).code === tape.code;
+  const docs = labels ? labels.filter(sameTape) : [doc];
+  const skipped = labels ? labels.filter((d) => !sameTape(d)).map((d) => d.name || 'Untitled label') : [];
   const dpm = profile.dpi / MM_PER_INCH;
   const bitmaps: PrintBitmap[] = [];
-  const cutMark = doc.print.cut === 'none' && doc.print.cutMarks;
-  for (const pctx of pages) {
-    const bmp = renderPrintBitmap(doc, pctx, profile.dpi, profile.headPins, { cutMark, mirror: doc.print.mirror });
-    for (const section of splitBitmap(bmp, doc, dpm)) for (let c = 0; c < Math.max(1, doc.print.copies); c++) bitmaps.push(section);
+  for (const d of docs) {
+    await preloadDoc(d);
+    const all = enumeratePages(d, new Date(), dateFormat);
+    // A record range only applies when printing a single label.
+    const pages = range && !labels ? all.slice(Math.max(0, range.from), Math.min(all.length, range.to + 1)) : all;
+    const cutMark = doc.print.cut === 'none' && d.print.cutMarks;
+    for (const pctx of pages) {
+      const bmp = renderPrintBitmap(d, pctx, profile.dpi, profile.headPins, { cutMark, mirror: d.print.mirror });
+      for (const section of splitBitmap(bmp, d, dpm)) for (let c = 0; c < Math.max(1, d.print.copies); c++) bitmaps.push(section);
+    }
   }
-  const tape = findTape(doc.media.kind, doc.media.width);
   const options: JobOptions = {
     mediaWidth: tape.code,
     autoCut: doc.print.cut === 'each',
@@ -170,7 +185,7 @@ export async function prepareJob(
     minimal,
   };
   const chunks = buildJob(bitmaps.map((b) => bitmapToRaster(b, profile)), profile, options);
-  return { bitmaps, profile, options, chunks, bytes: chunks.reduce((s, c) => s + c.length, 0) };
+  return { bitmaps, profile, options, chunks, bytes: chunks.reduce((s, c) => s + c.length, 0), skipped };
 }
 
 export async function runJob(job: PreparedJob): Promise<void> {

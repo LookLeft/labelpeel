@@ -23,18 +23,24 @@ export function PrintDialog() {
   const [range, setRange] = useState<{ from: number; to: number } | null>(null);
   const profile = effectiveProfile(settings.profileId);
   const pageCount = useMemo(() => enumeratePages(doc).length, [doc]);
+  // Print just this label, or every open tab in one job.
+  const tabs = useEditor((s) => s.tabs);
+  const [scope, setScope] = useState<'one' | 'all'>('one');
+  const all = scope === 'all' && tabs.length > 1;
 
   useEffect(() => {
     if (!open) return;
     let alive = true;
     setError(null);
-    prepareJob(doc, profile, settings.minimalProtocol, settings.dateFormat, range ?? undefined)
+    const labels = all ? st().allTabs().map((t) => t.doc) : undefined;
+    prepareJob(doc, profile, settings.minimalProtocol, settings.dateFormat, range ?? undefined, labels)
       .then((j) => alive && setJob(j))
       .catch((e) => alive && setError((e as Error).message));
     return () => {
       alive = false;
     };
-  }, [open, doc, profile, settings.minimalProtocol, settings.dateFormat, range]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, doc, profile, settings.minimalProtocol, settings.dateFormat, range, all, tabs]);
 
 
   // Tape the printer reports vs the tape the design is for (width codes, mm).
@@ -84,7 +90,18 @@ export function PrintDialog() {
           <div className="wizard-split print-split">
             <div>
               <div className="section-title">What to print</div>
-              {pageCount > 1 && (
+              {tabs.length > 1 && (
+                <Field label="Labels">
+                  <Seg value={scope} onChange={setScope} options={[{ value: 'one', label: 'This label' }, { value: 'all', label: `All open (${tabs.length})` }]} />
+                  {all && <div className="hint" style={{ marginTop: 4 }}>In tab order, as one strip. Each label uses its own copies and records; the cut settings below apply to the whole strip.</div>}
+                </Field>
+              )}
+              {all && job && job.skipped.length > 0 && (
+                <div className="callout warn" style={{ marginBottom: 10 }}>
+                  Not included, as they're for different tape: {job.skipped.join(', ')}.
+                </div>
+              )}
+              {!all && pageCount > 1 && (
                 <Field label={`Records / serial numbers (${pageCount})`}>
                   <Seg value={range ? 'range' : 'all'} onChange={(v) => setRange(v === 'all' ? null : { from: 0, to: Math.min(pageCount - 1, 0) })} options={[{ value: 'all', label: 'All' }, { value: 'range', label: 'Range' }]} />
                   {range && (

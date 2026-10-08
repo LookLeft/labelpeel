@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { CheckCircle2, AlertTriangle, Info, Shapes, SlidersHorizontal } from 'lucide-react';
 import { TopBar } from './ui/TopBar';
+import { TabBar } from './ui/TabBar';
 import { LeftPanel } from './ui/LeftPanel';
 import { EditorCanvas } from './ui/Canvas';
 import { Inspector } from './ui/Inspector';
@@ -154,6 +155,11 @@ export default function App() {
     [],
   );
   useEffect(() => {
+    // Ask the browser to keep storage (open labels, My labels) rather than
+    // clearing it when space is short or the site isn't used for a while.
+    navigator.storage?.persist?.().catch(() => undefined);
+  }, []);
+  useEffect(() => {
     // Called by the Android app's back button; true means something was closed.
     (window as unknown as { __labelsmithBack?: () => boolean }).__labelsmithBack = () => {
       const s = useEditor.getState();
@@ -170,7 +176,8 @@ export default function App() {
   }, []);
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
-      if (useEditor.getState().dirty && useEditor.getState().fileName) e.preventDefault();
+      // Any open label with unsaved changes to a file.
+      if (useEditor.getState().allTabs().some((t) => t.dirty && t.fileName)) e.preventDefault();
     };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
@@ -179,6 +186,7 @@ export default function App() {
   return (
     <div className={`app mp-${mobilePanel}`}>
       <TopBar />
+      <TabBar />
       <LeftPanel />
       <main className="main">
         <EditorCanvas />

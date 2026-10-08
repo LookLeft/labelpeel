@@ -5,7 +5,7 @@ import {
   ClipboardPaste, Search, RectangleHorizontal, FolderOpen, Frame, Table,
 } from 'lucide-react';
 import { useEditor, type LeftTab } from '../state/store';
-import { insertTable, insertBarcode, insertImage, insertPlaceholder, insertShape, insertSymbol, insertText, loadDataFile, thumbnail, loadDoc, confirmDiscard } from './actions';
+import { insertTable, insertBarcode, insertImage, insertPlaceholder, insertShape, insertSymbol, insertText, loadDataFile, thumbnail, loadDoc } from './actions';
 import { TEMPLATES, TEMPLATE_CATEGORIES, type Template } from '../model/templates';
 import { CATEGORIES, customCatalog, loadCatalog, type ClipArtItem } from '../clipart';
 import { svgUrl } from './Inspector';
@@ -172,7 +172,6 @@ function TemplatesTab() {
             className="template-card"
             style={{ textAlign: 'left' }}
             onClick={() => {
-              if (!confirmDiscard()) return;
               loadDoc(t.build());
               useEditor.getState().notify(`Loaded template “${t.name}”`, 'success');
             }}
@@ -442,7 +441,7 @@ function LibraryTab() {
       {items?.length === 0 && <div className="hint">Labels you save with “Save to My labels” appear here. They are stored in this browser.</div>}
       <div style={{ display: 'grid', gap: 8 }}>
         {items?.map((it) => (
-          <div key={it.id} className="template-card" onClick={() => confirmDiscard() && loadDoc(it.doc, null, null)}>
+          <div key={it.id} className="template-card" onClick={() => loadDoc(it.doc, null, null)}>
             <img src={it.thumb} alt="" />
             <div className="row">
               <div className="name" style={{ flex: 1 }}>{it.name}</div>

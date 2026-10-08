@@ -8,7 +8,7 @@ import { newDoc, makeText } from '../model/defaults';
 import { ParamsForm } from './Inspector';
 import { Field, Seg } from './fields';
 import { TypeIcon } from './TypeIcon';
-import { confirmDiscard, importLbxFile, loadDoc, openFile, thumbnail } from './actions';
+import { importLbxFile, loadDoc, openFile, thumbnail } from './actions';
 import { effectiveProfile } from '../printer/service';
 
 export function Wizard() {
@@ -55,7 +55,7 @@ export function Wizard() {
   if (!open) return null;
   const close = () => set({ wizardOpen: false });
   const create = () => {
-    if (!preview || !confirmDiscard()) return;
+    if (!preview) return;
     loadDoc({ ...preview, name: def?.id === 'general' ? 'Untitled label' : def!.name });
     close();
   };

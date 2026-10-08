@@ -46,7 +46,8 @@ It is a static site, so it deploys to GitHub Pages and works offline as an insta
   - cut after each label or every few labels, at the end, or never; half cut; chain printing; mirror
   - copies, and splitting a long design into several labels
 - **Preview.** A dot-accurate preview shows exactly what the print head will print, on the full width of the tape, laid out as the strip that comes out of the printer with its cuts marked. Anything outside the printable area is shown in red with a warning. You can also export a PNG or a raw `.bin` print file.
-- **Files.** Save, Save As and Open use `.labelsmith` (JSON) files, with a local library of saved labels and autosave.
+- **Tabs.** Work on several labels at once, each with its own undo history and zoom. Double-click a tab to rename it. Print all open labels as one job to save tape.
+- **Files.** Save, Save As and Open use `.labelsmith` (JSON) files, with a local library of saved labels, and open tabs are restored when you come back. **File → Back up everything** saves all of it to one file.
 - **Brother `.lbx` import** (see below).
 
 ## Printing
@@ -65,6 +66,19 @@ A serial port can open with no printer behind it (macOS keeps a paired printer's
 If labels don't print, turn on **Printer → Advanced → Minimal command set**. This sends exactly the byte sequence [ptouch-print](https://git.familie-radermacher.ch/linux/ptouch-print.git) uses, which has been verified on the PT-E560BT. In that mode the printer uses its own cut defaults.
 
 The cut, half-cut and chain commands follow Brother's raster command reference but haven't been tested on hardware yet.
+
+## Where your labels are stored
+
+Open tabs, **My labels** (File → Save to My labels) and settings are kept in the browser's storage for the site, or the app's own storage:
+
+| | Location | Updates | Uninstalling |
+| --- | --- | --- | --- |
+| Website | The browser's storage for the site | Kept | Lost if you clear the site's data; Safari also clears sites you haven't used for 7 days |
+| Mac app | `~/Library/WebKit/com.alexbrazier.labelsmith.mac/WebsiteData` | Kept | Kept if you only move the app to the Bin; deleting that folder removes it |
+| iPhone / iPad app | The app's container | Kept | Deleted with the app |
+| Android app | The app's data | Kept | Deleted with the app (and if you clear the app's storage) |
+
+The app asks the browser to keep its storage permanently, but browser storage is never a guaranteed archive. Save labels you care about as `.labelsmith` files, or use **File → Back up everything**, which saves open labels, My labels and settings in one `.json` file. **File → Restore from backup** brings them back on any device, without overwriting newer copies.
 
 ## Brother's own file format (.lbx)
 

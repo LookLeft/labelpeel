@@ -13,14 +13,20 @@ import { TAPE_RGB, TEXT_RGB, type PrinterStatus } from '../printer/status';
 
 const S = () => useEditor.getState();
 
-export function confirmDiscard(): boolean {
-  return !S().dirty || confirm('Discard unsaved changes to this label?');
+/** Close a tab, asking first if it has unsaved changes. */
+export function closeTab(id: string) {
+  const tab = S().allTabs().find((t) => t.id === id);
+  if (tab?.dirty && !confirm(`Close “${tab.doc.name || 'Untitled label'}” without saving your changes?`)) return;
+  S().closeTab(id);
 }
 
+/** Open a label in a new tab, or in the current one if it's blank and untouched. */
 export function loadDoc(doc: LabelDoc, name: string | null = null, handle: FileSystemFileHandle | null = null) {
-  S().setDoc(layoutPostPass(doc), { resetHistory: true });
+  const laid = layoutPostPass(doc);
+  if (!S().pristine) return S().newTab(laid, { name, handle });
+  S().setDoc(laid, { resetHistory: true });
   S().setFile(name, handle);
-  S().set({ dirty: false, selection: [] });
+  S().set({ dirty: false, selection: [], pristine: false });
 }
 
 export function createFromType(typeId: string, media: LabelDoc['media'], params?: Record<string, unknown>) {
@@ -32,7 +38,6 @@ export function createFromType(typeId: string, media: LabelDoc['media'], params?
 }
 
 export async function openFile() {
-  if (!confirmDiscard()) return;
   try {
     const res = await openDocFile();
     if (!res) return;
@@ -68,7 +73,6 @@ export async function exportLbxFile() {
 }
 
 export async function importLbxFile() {
-  if (!confirmDiscard()) return;
   const f = await pickFile('.lbx');
   if (f) await importLbxBuffer(await f.arrayBuffer(), f.name);
 }

@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   FilePlus2, FolderOpen, Save, Undo2, Redo2, Printer, ChevronDown, Download, FileImage, FileUp, Bluetooth, Usb, Library,
-  Sun, Moon, Monitor, Upload, Type as TypeIcon, Info,
+  Sun, Moon, Monitor, Upload, Type as TypeIcon, Info, X, Archive, ArchiveRestore,
 } from 'lucide-react';
 import { useEditor } from '../state/store';
 import { usePrinter } from '../printer/service';
-import { downloadPrintFile, exportLbxFile, exportPng, importLbxFile, openFile, save, saveToLibrary, loadDataFile } from './actions';
+import { closeTab, downloadPrintFile, exportLbxFile, exportPng, importLbxFile, openFile, save, saveToLibrary, loadDataFile } from './actions';
 import { loadFontFile, loadLocalFonts } from '../render/fonts';
 import { pickFile } from '../io/files';
+import { exportBackup, restoreBackup } from '../io/backup';
 
 function Menu({ label, children }: { label: React.ReactNode; children: (close: () => void) => React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -61,6 +62,7 @@ export function TopBar() {
           <>
             <Item icon={<FilePlus2 size={15} />} label="New label…" kbd={`${mod}N`} onClick={() => { close(); st().set({ wizardOpen: true }); }} />
             <Item icon={<FolderOpen size={15} />} label="Open…" kbd={`${mod}O`} onClick={() => { close(); openFile(); }} />
+            <Item icon={<X size={15} />} label="Close label" onClick={() => { close(); closeTab(st().activeTab); }} />
             <div className="menu-sep" />
             <Item icon={<Save size={15} />} label="Save" kbd={`${mod}S`} onClick={() => { close(); save(false); }} />
             <Item icon={<Save size={15} />} label="Save as…" kbd={`${mod}⇧S`} onClick={() => { close(); save(true); }} />
@@ -68,6 +70,9 @@ export function TopBar() {
             <div className="menu-sep" />
             <Item icon={<FileUp size={15} />} label="Import P-touch Editor .lbx…" onClick={() => { close(); importLbxFile(); }} />
             <Item icon={<Download size={15} />} label="Export for P-touch Editor (.lbx)" onClick={() => { close(); exportLbxFile(); }} />
+            <div className="menu-sep" />
+            <Item icon={<Archive size={15} />} label="Back up everything…" onClick={() => { close(); exportBackup(); }} />
+            <Item icon={<ArchiveRestore size={15} />} label="Restore from backup…" onClick={() => { close(); restoreBackup(); }} />
             <Item icon={<Upload size={15} />} label="Load CSV data…" onClick={() => { close(); loadDataFile(); st().set({ leftTab: 'data' }); }} />
             <div className="menu-sep" />
             <Item icon={<FileImage size={15} />} label="Export PNG (preview)" onClick={() => { close(); exportPng('preview'); }} />

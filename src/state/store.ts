@@ -1,10 +1,13 @@
 import { create } from 'zustand';
-import { cloneElement, newDoc } from '../model/defaults';
+import { cloneElement, newDoc, uid } from '../model/defaults';
 import type { LabelDoc, LabelElement } from '../model/types';
 import { applyLabelType } from '../model/labelTypes';
 
 const HISTORY_LIMIT = 200;
 const AUTOSAVE_KEY = 'labelsmith:autosave';
+/** Open tabs: an index plus one entry per tab, so one large label can't stop the rest saving. */
+const SESSION_KEY = 'labelsmith:session';
+const tabKey = (id: string) => `labelsmith:tab:${id}`;
 const SETTINGS_KEY = 'labelsmith:settings';
 
 export interface Settings {
@@ -38,10 +41,53 @@ function loadSettings(): Settings {
   return defaultSettings;
 }
 
-function loadAutosave(): LabelDoc | null {
+/** One open label. The active tab's live state is in the editor's top-level fields. */
+export interface Tab {
+  id: string;
+  doc: LabelDoc;
+  past: LabelDoc[];
+  future: LabelDoc[];
+  selection: string[];
+  fileName: string | null;
+  fileHandle: FileSystemFileHandle | null;
+  dirty: boolean;
+  previewIndex: number;
+  /** A new blank tab nobody has edited: opening a label reuses it. */
+  pristine: boolean;
+}
+
+const blankTab = (doc = newDoc()): Tab => ({
+  id: uid(),
+  doc,
+  past: [],
+  future: [],
+  selection: [],
+  fileName: null,
+  fileHandle: null,
+  dirty: false,
+  previewIndex: 0,
+  pristine: true,
+});
+
+/** The open tabs saved last time, or null if there are none. */
+function loadSession(): { tabs: Tab[]; active: string } | null {
   try {
-    const raw = localStorage.getItem(AUTOSAVE_KEY);
-    if (raw) return migrate(JSON.parse(raw));
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (raw) {
+      const index = JSON.parse(raw) as { tabs: { id: string; fileName: string | null }[]; active: string };
+      const tabs: Tab[] = [];
+      for (const t of index.tabs) {
+        const doc = localStorage.getItem(tabKey(t.id));
+        if (doc) tabs.push({ ...blankTab(migrate(JSON.parse(doc))), id: t.id, fileName: t.fileName, pristine: false });
+      }
+      if (tabs.length) return { tabs, active: tabs.some((t) => t.id === index.active) ? index.active : tabs[0].id };
+    }
+    // Before tabs, a single label was autosaved.
+    const old = localStorage.getItem(AUTOSAVE_KEY);
+    if (old) {
+      const tab = { ...blankTab(migrate(JSON.parse(old))), pristine: false };
+      return { tabs: [tab], active: tab.id };
+    }
   } catch {
     /* corrupted or unavailable */
   }
@@ -95,6 +141,10 @@ interface EditorState {
   printerOpen: boolean;
   aboutOpen: boolean;
   calibrateOpen: boolean;
+  /** Open labels; the entry for the active one is refreshed when switching away. */
+  tabs: Tab[];
+  activeTab: string;
+  pristine: boolean;
   settings: Settings;
   toast: { id: number; text: string; kind: 'info' | 'error' | 'success' } | null;
 
@@ -118,6 +168,13 @@ interface EditorState {
   setSettings: (patch: Partial<Settings>) => void;
   set: (patch: Partial<EditorState>) => void;
   notify: (text: string, kind?: 'info' | 'error' | 'success') => void;
+  /** Open a label in a new tab (a blank one if no doc), after the current tab. */
+  newTab: (doc?: LabelDoc, file?: { name: string | null; handle: FileSystemFileHandle | null }) => void;
+  switchTab: (id: string) => void;
+  /** Close a tab without asking; callers confirm unsaved changes first. */
+  closeTab: (id: string) => void;
+  /** All tabs with the active one's current state, e.g. for printing them all. */
+  allTabs: () => Tab[];
 }
 
 let clipboard: LabelElement[] = [];
@@ -135,28 +192,55 @@ export const useEditor = create<EditorState>((set, get) => {
       lastKey: key ?? null,
       lastTime: now,
       dirty: true,
+      pristine: false,
     });
   };
 
-  return {
-    doc: loadAutosave() ?? newDoc(),
-    past: [],
-    future: [],
-    selection: [],
+  // The active tab's live state, saved into its entry when switching away.
+  const current = (): Tab => {
+    const s = get();
+    return {
+      id: s.activeTab,
+      doc: s.doc,
+      past: s.past,
+      future: s.future,
+      selection: s.selection,
+      fileName: s.fileName,
+      fileHandle: s.fileHandle,
+      dirty: s.dirty,
+      previewIndex: s.previewIndex,
+      pristine: s.pristine,
+    };
+  };
+  const show = (t: Tab) => ({
+    activeTab: t.id,
+    doc: t.doc,
+    past: t.past,
+    future: t.future,
+    selection: t.selection,
+    fileName: t.fileName,
+    fileHandle: t.fileHandle,
+    dirty: t.dirty,
+    previewIndex: t.previewIndex,
+    pristine: t.pristine,
     lastKey: null,
-    lastTime: 0,
     txStart: null,
-    fileName: null,
-    fileHandle: null,
-    dirty: false,
-    previewIndex: 0,
+    editingTextId: null,
+  });
+  const withCurrent = () => get().tabs.map((t) => (t.id === get().activeTab ? current() : t));
+  const session = loadSession();
+  const first = session?.tabs.find((t) => t.id === session.active) ?? blankTab();
+
+  return {
+    ...show(first),
+    lastTime: 0,
     dotPreview: false,
     zoom: 0,
     fitRequest: 0,
-    editingTextId: null,
     leftTab: 'insert',
     mobilePanel: 'tools',
-    wizardOpen: !loadAutosave(),
+    wizardOpen: !session,
+    tabs: session?.tabs ?? [first],
     printOpen: false,
     printerOpen: false,
     aboutOpen: false,
@@ -259,6 +343,29 @@ export const useEditor = create<EditorState>((set, get) => {
       }
     },
     set: (patch) => set(patch),
+    newTab: (doc, file) => {
+      const tabs = withCurrent();
+      const tab: Tab = { ...blankTab(doc), fileName: file?.name ?? null, fileHandle: file?.handle ?? null, pristine: !doc };
+      const at = tabs.findIndex((t) => t.id === get().activeTab) + 1;
+      tabs.splice(at, 0, tab);
+      set({ tabs, ...show(tab), fitRequest: get().fitRequest + 1 });
+    },
+    switchTab: (id) => {
+      if (id === get().activeTab) return;
+      const tabs = withCurrent();
+      const tab = tabs.find((t) => t.id === id);
+      if (tab) set({ tabs, ...show(tab) });
+    },
+    closeTab: (id) => {
+      const before = withCurrent();
+      const at = before.findIndex((t) => t.id === id);
+      let tabs = before.filter((t) => t.id !== id);
+      if (!tabs.length) tabs = [blankTab()];
+      if (id !== get().activeTab) return set({ tabs });
+      const next = tabs[Math.min(Math.max(0, at), tabs.length - 1)];
+      set({ tabs, ...show(next), fitRequest: get().fitRequest + 1 });
+    },
+    allTabs: () => withCurrent(),
     notify: (text, kind = 'info') => {
       const id = ++toastId;
       set({ toast: { id, text, kind } });
@@ -283,16 +390,36 @@ export function pasteClipboard() {
   return true;
 }
 
-// Autosave (debounced).
+// Autosave (debounced): each open tab under its own key, plus the list of tabs.
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
+let warnedFull = false;
 useEditor.subscribe((s, prev) => {
-  if (s.doc === prev.doc) return;
+  if (s.doc === prev.doc && s.tabs === prev.tabs && s.activeTab === prev.activeTab && s.fileName === prev.fileName) return;
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
+    const tabs = useEditor.getState().allTabs();
+    let full = false;
     try {
-      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(s.doc));
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ tabs: tabs.map((t) => ({ id: t.id, fileName: t.fileName })), active: s.activeTab }));
+      // Drop saved labels whose tabs were closed.
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k?.startsWith('labelsmith:tab:') && !tabs.some((t) => tabKey(t.id) === k)) localStorage.removeItem(k);
+      }
+      localStorage.removeItem(AUTOSAVE_KEY);
     } catch {
-      /* quota exceeded (large images) */
+      full = true;
+    }
+    for (const t of tabs) {
+      try {
+        localStorage.setItem(tabKey(t.id), JSON.stringify(t.doc));
+      } catch {
+        full = true; // quota exceeded, usually large images
+      }
+    }
+    if (full && !warnedFull) {
+      warnedFull = true;
+      useEditor.getState().notify("Browser storage is full, so some open labels can't be restored after reloading. Save them to a file or close tabs you don't need.", 'error');
     }
   }, 400);
 });

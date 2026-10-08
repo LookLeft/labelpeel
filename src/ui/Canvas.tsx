@@ -72,6 +72,9 @@ function aabb(b: Box, rot: number): Box {
   return { x: b.x + b.w / 2 - w / 2, y: b.y + b.h / 2 - h / 2, w, h };
 }
 
+/** Each tab's zoom and scroll position, restored when switching back to it. */
+const tabViews = new Map<string, { zoom: number; panX: number; panY: number }>();
+
 export function EditorCanvas() {
   const doc = useEditor((s) => s.doc);
   const selection = useEditor((s) => s.selection);
@@ -132,6 +135,22 @@ export function EditorCanvas() {
   // Fit on load / new document / container resize.
   const fitKey = `${fitRequest}|${size.w}|${size.h}|${doc.orientation}|${doc.media.width}`;
   const lastFit = useRef('');
+
+  // Switching tabs restores that tab's view (or fits a tab shown for the first time).
+  const activeTab = useEditor((s) => s.activeTab);
+  const shownTab = useRef(activeTab);
+  useEffect(() => {
+    if (shownTab.current === activeTab) return;
+    shownTab.current = activeTab;
+    lastFit.current = fitKey;
+    const saved = tabViews.get(activeTab);
+    if (saved) setView(saved);
+    else fit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+  useEffect(() => {
+    tabViews.set(shownTab.current, view);
+  }, [view]);
   useEffect(() => {
     if (lastFit.current !== fitKey && size.w > 50) {
       lastFit.current = fitKey;

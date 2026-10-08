@@ -68,10 +68,11 @@ textarea {
 
 .app {
   display: grid;
-  grid-template-rows: 48px 1fr 28px;
+  grid-template-rows: 48px auto 1fr 28px;
   grid-template-columns: 300px 1fr 300px;
   grid-template-areas:
     'top top top'
+    'tabs tabs tabs'
     'left main right'
     'status status status';
   height: 100%;
@@ -1111,6 +1112,103 @@ textarea {
   text-align: right;
 }
 
+/* ---------- open labels */
+.tabbar {
+  grid-area: tabs;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 4px 8px 0;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+.tabbar-tabs {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  min-width: 0;
+}
+.tabbar > .btn {
+  margin-bottom: 3px;
+  flex: 0 0 auto;
+}
+.doc-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  min-width: 90px;
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 0 4px 0 12px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  color: var(--text-2);
+  cursor: pointer;
+  user-select: none;
+  font-size: 12.5px;
+}
+.doc-tab:hover {
+  background: var(--panel-2);
+}
+.doc-tab.on {
+  background: var(--canvas);
+  border-color: var(--line);
+  color: var(--text);
+  margin-bottom: -1px;
+  height: 31px;
+}
+.doc-tab-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.doc-tab-rename {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--panel);
+  padding: 0 4px;
+  outline: none;
+  font-size: 12.5px;
+}
+.doc-tab-dirty {
+  color: var(--text-3);
+  font-size: 9px;
+}
+.doc-tab-close {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+  opacity: 0;
+}
+.doc-tab.on .doc-tab-close,
+.doc-tab:hover .doc-tab-close {
+  opacity: 1;
+}
+.doc-tab-close:hover {
+  background: var(--line);
+  color: var(--text);
+}
+@media (hover: none) {
+  .doc-tab-close {
+    opacity: 1;
+  }
+}
+
 @media (max-width: 1100px) {
   .app {
     grid-template-columns: 260px 1fr 270px;
@@ -1120,9 +1218,10 @@ textarea {
   /* Phones / narrow tablets: canvas on top, one side panel below it, chosen by .mobile-switch. */
   .app {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 48px minmax(140px, 1fr) auto minmax(0, 45%) auto;
+    grid-template-rows: 48px auto minmax(140px, 1fr) auto minmax(0, 45%) auto;
     grid-template-areas:
       'top'
+      'tabs'
       'main'
       'switch'
       'panel'
@@ -1136,6 +1235,13 @@ textarea {
   .app.mp-tools .right,
   .app.mp-properties .left {
     display: none;
+  }
+  .tabbar.single {
+    display: none;
+  }
+  .doc-tab {
+    min-width: 70px;
+    max-width: 150px;
   }
   .app > .mobile-switch {
     display: flex;
