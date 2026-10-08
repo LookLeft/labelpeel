@@ -55,7 +55,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.version.outputs.name }}
         run: |
-          gh release create "v$VERSION" labelsmith-*.apk Labelsmith-*.dmg \
+          # appcast.xml (Mac auto-update feed) is only there when the update key is set.
+          FILES=(labelsmith-*.apk Labelsmith-*.dmg)
+          [ -f appcast.xml ] && FILES+=(appcast.xml)
+          gh release create "v$VERSION" "${FILES[@]}" \
             --title "Labelsmith $VERSION" \
             --target "${{ github.sha }}" \
             --generate-notes \

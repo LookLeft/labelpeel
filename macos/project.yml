@@ -5,6 +5,12 @@ options:
   bundleIdPrefix: com.alexbrazier
   deploymentTarget:
     macOS: "13.0"
+packages:
+  # Automatic updates from GitHub releases.
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    # Keep in step with SPARKLE_VERSION in .github/workflows/macos.yml.
+    exactVersion: 2.10.0
 settings:
   base:
     SWIFT_VERSION: "5.0"
@@ -22,6 +28,22 @@ targets:
       - path: Web
         type: folder
         buildPhase: resources
+    dependencies:
+      - package: Sparkle
+    postBuildScripts:
+      - name: Prepare Sparkle
+        basedOnDependencyAnalysis: false
+        script: |
+          # Sparkle's XPC services are only for sandboxed apps, and this one isn't.
+          # Its other helpers come ad-hoc signed, which notarization rejects, so
+          # sign them like the app, inside out. Xcode signs the app itself after this.
+          [ -n "$EXPANDED_CODE_SIGN_IDENTITY" ] || exit 0
+          F="$TARGET_BUILD_DIR/$FRAMEWORKS_FOLDER_PATH/Sparkle.framework"
+          rm -rf "$F/XPCServices" "$F/Versions/B/XPCServices"
+          SIGN=(codesign -f -s "$EXPANDED_CODE_SIGN_IDENTITY" -o runtime $OTHER_CODE_SIGN_FLAGS)
+          "${SIGN[@]}" "$F/Versions/B/Autoupdate"
+          "${SIGN[@]}" "$F/Versions/B/Updater.app"
+          "${SIGN[@]}" "$F"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.alexbrazier.labelsmith.mac
@@ -29,6 +51,8 @@ targets:
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: JK8FC72ZE9
         ENABLE_HARDENED_RUNTIME: YES
+        # The Prepare Sparkle script edits the embedded framework.
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: NO
     info:
@@ -41,3 +65,9 @@ targets:
         LSApplicationCategoryType: public.app-category.productivity
         NSBluetoothAlwaysUsageDescription: Labelsmith connects to your label printer over Bluetooth to print your designs.
         NSHumanReadableCopyright: Labelsmith is not affiliated with Brother Industries, Ltd.
+        # Updates: each release attaches an appcast.xml for its version, and
+        # GitHub's "latest" link always points at the newest one.
+        SUFeedURL: https://github.com/alexbrazier/labelsmith/releases/latest/download/appcast.xml
+        # Updates must be signed with the matching private key (SPARKLE_PRIVATE_KEY secret).
+        SUPublicEDKey: 6DNBuuJ4QDkBBNsnIZe/u589/wF+oqBc2Vh5xcxoWdQ=
+        SUEnableAutomaticChecks: true

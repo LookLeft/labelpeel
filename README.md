@@ -103,7 +103,8 @@ Browsers on a Mac can only reach a Bluetooth printer through the serial port
 macOS keeps for every paired device, which opens even when the printer is off.
 `macos/` has a small native app that wraps this one and connects to the paired
 printer directly over Bluetooth or USB. Each release includes a signed,
-notarized `.dmg`. See [macos/README.md](macos/README.md).
+notarized `.dmg`, and the app updates itself from new GitHub releases. See
+[macos/README.md](macos/README.md).
 
 ## Android
 
@@ -143,7 +144,7 @@ Main folders:
 
 - **Website:** `.github/workflows/deploy.yml` builds and tests every push and pull request, and deploys pushes to `main` to GitHub Pages. To turn this on once, go to **Settings → Pages → Build and deployment → Source** and choose **GitHub Actions**.
 - **Native apps:** `android.yml` and `macos.yml` build the Android and Mac apps on every push and pull request; the APK is attached to each run.
-- **Releases:** run **Actions → Release → Run workflow** with a version such as `0.1.0`, or push a tag like `v0.1.0`. It builds the signed Android APK and the signed, notarized Mac `.dmg`, and publishes a GitHub release with both attached. Signing needs repository secrets, set up once as described in [android/README.md](android/README.md#releases-and-signing) and [macos/README.md](macos/README.md#releases-signing-and-notarization).
+- **Releases:** run **Actions → Release → Run workflow** with a version such as `0.1.0`, or push a tag like `v0.1.0`. It builds the signed Android APK and the signed, notarized Mac `.dmg`, and publishes a GitHub release with both attached. Signing needs repository secrets, set up once as described in [android/README.md](android/README.md#releases-and-signing) and [macos/README.md](macos/README.md#releases-signing-and-notarization). Each release also carries `appcast.xml`, the Mac app's update feed.
 
 ## Credits
 

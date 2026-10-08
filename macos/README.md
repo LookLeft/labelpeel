@@ -54,7 +54,31 @@ Set up the secrets once:
    (Settings → Secrets and variables → Actions): `MACOS_CERTIFICATE_BASE64`,
    `MACOS_CERTIFICATE_PASSWORD`, `APPLE_API_KEY_BASE64`, `APPLE_API_KEY_ID` and
    `APPLE_API_ISSUER_ID`.
+6. **Update key:** add `SPARKLE_PRIVATE_KEY` from the same file as a secret too
+   (see [Updates](#updates)).
 
 Back up `secrets/` somewhere safe, such as a password manager. Without the
 secrets, release builds still publish a `.dmg`, but it's unsigned and macOS
 warns that it can't check it.
+
+## Updates
+
+The app updates itself with [Sparkle](https://sparkle-project.org). It checks
+`appcast.xml` on the latest GitHub release once a day (and on demand from
+**Labelsmith → Check for Updates…**). When a newer version is there, it offers
+to download the `.dmg`, checks it was signed with the update key and replaces
+the app.
+
+The Release workflow writes `appcast.xml` and attaches it to each release. It
+signs the `.dmg` with the private EdDSA key in the `SPARKLE_PRIVATE_KEY`
+secret; the app only accepts updates signed with the matching public key
+(`SUPublicEDKey` in `project.yml`). Keep `secrets/sparkle-private.key` backed
+up: if it's lost, installed copies can't be updated automatically, and people
+have to download a build with a new public key by hand.
+
+To make a new key pair, download a [Sparkle release](https://github.com/sparkle-project/Sparkle/releases)
+and run `bin/generate_keys -x secrets/sparkle-private.key`, then put the
+printed public key in `project.yml`.
+
+If the secret isn't set, the release has no `appcast.xml`, and installed
+copies don't see it.
