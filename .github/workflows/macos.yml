@@ -72,6 +72,12 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PW" "$KEYCHAIN" > /dev/null
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
           rm "$RUNNER_TEMP/cert.p12"
+          # Sign with the certificate's own team, e.g. "Developer ID Application: Name (TEAMID)".
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" | grep -o '"Developer ID Application: .*"' | head -1 | tr -d '"')"
+          TEAM="$(echo "$IDENTITY" | sed -E 's/.*\(([A-Z0-9]+)\)$/\1/')"
+          if [ -z "$TEAM" ]; then echo "::error::No Developer ID Application identity in the imported certificate."; exit 1; fi
+          echo "Signing as $IDENTITY"
+          echo "TEAM_ID=$TEAM" >> "$GITHUB_ENV"
           echo "SIGNED=1" >> "$GITHUB_ENV"
       - name: No signing certificate
         if: inputs.release && env.MACOS_CERTIFICATE_BASE64 == ''
@@ -80,7 +86,7 @@ jobs:
       - name: Build
         run: |
           if [ "$SIGNED" = 1 ]; then
-            SIGNING=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=Developer ID Application" "OTHER_CODE_SIGN_FLAGS=--timestamp")
+            SIGNING=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=Developer ID Application" "DEVELOPMENT_TEAM=$TEAM_ID" "OTHER_CODE_SIGN_FLAGS=--timestamp")
           else
             SIGNING=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=)
           fi
