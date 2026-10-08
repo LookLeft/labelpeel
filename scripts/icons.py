@@ -15,9 +15,9 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "assets" / "icon.png"
 PUBLIC = ROOT / "public"
-IOS_ICONSET = ROOT / "ios" / "Labelsmith" / "Assets.xcassets" / "AppIcon.appiconset"
+IOS_ICONSET = ROOT / "ios" / "Labelpeel" / "Assets.xcassets" / "AppIcon.appiconset"
 ANDROID_RES = ROOT / "android" / "app" / "src" / "main" / "res" / "drawable-nodpi"
-MAC_ICONSET = ROOT / "macos" / "Labelsmith" / "Assets.xcassets" / "AppIcon.appiconset"
+MAC_ICONSET = ROOT / "macos" / "Labelpeel" / "Assets.xcassets" / "AppIcon.appiconset"
 
 # The corner curves reach about 80 px in along the diagonal of the 1254 px
 # source; cropping 96 px from each side leaves only the blue background.

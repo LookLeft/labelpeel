@@ -1,4 +1,4 @@
-# Labelsmith for Android
+# Labelpeel for Android
 
 A small native app around the web app. It shows the same app in a WebView and
 adds a Bluetooth bridge: Android apps can talk to Bluetooth Classic printers
@@ -7,12 +7,12 @@ approval from Brother.
 
 ## Installing
 
-Download `labelsmith-<version>.apk` from the
+Download `labelpeel-<version>.apk` from the
 [latest release](../../../releases/latest) on your phone and open it. Android
 asks you to allow installing apps from your browser or Files app the first time.
 
 Builds of every push are also attached to the **Android** workflow runs in the
-Actions tab, as the `labelsmith-android` artifact (a zip containing the APK).
+Actions tab, as the `labelpeel-android` artifact (a zip containing the APK).
 
 ## Printing
 
@@ -52,9 +52,9 @@ Android only installs an update when it's signed with the same key as the
 installed copy, so set up a release key once:
 
 ```sh
-keytool -genkeypair -v -keystore labelsmith.keystore -alias labelsmith \
+keytool -genkeypair -v -keystore labelpeel.keystore -alias labelpeel \
   -keyalg RSA -keysize 4096 -validity 10000
-base64 -i labelsmith.keystore | pbcopy   # macOS; on Linux: base64 -w0 labelsmith.keystore
+base64 -i labelpeel.keystore | pbcopy   # macOS; on Linux: base64 -w0 labelpeel.keystore
 ```
 
 Then add these repository secrets (Settings → Secrets and variables → Actions):
@@ -63,7 +63,7 @@ Then add these repository secrets (Settings → Secrets and variables → Action
 | --- | --- |
 | `ANDROID_KEYSTORE_BASE64` | the base64 text copied above |
 | `ANDROID_KEYSTORE_PASSWORD` | the keystore password |
-| `ANDROID_KEY_ALIAS` | `labelsmith` |
+| `ANDROID_KEY_ALIAS` | `labelpeel` |
 | `ANDROID_KEY_PASSWORD` | the key password (the same as the keystore password unless you chose another) |
 
 Keep the keystore file and passwords somewhere safe: without them you can't

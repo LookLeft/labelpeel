@@ -75,10 +75,10 @@ jobs:
         run: gradle assembleRelease -PversionName="${{ steps.version.outputs.name }}" -PversionCode="$(( $(date +%s) / 60 ))"
 
       - name: Name the APK
-        run: cp android/app/build/outputs/apk/release/app-release.apk "labelsmith-${{ steps.version.outputs.name }}.apk"
+        run: cp android/app/build/outputs/apk/release/app-release.apk "labelpeel-${{ steps.version.outputs.name }}.apk"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: labelsmith-android
-          path: labelsmith-*.apk
+          name: labelpeel-android
+          path: labelpeel-*.apk
           if-no-files-found: error

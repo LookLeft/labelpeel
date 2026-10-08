@@ -1,4 +1,4 @@
-package com.alexbrazier.labelsmith;
+package com.lookleft.labelpeel;
 
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
@@ -32,7 +32,7 @@ import java.util.HashMap;
  * Hosts the bundled web app in a WebView. Files are served from the APK's
  * assets over https://appassets.androidplatform.net so ES modules, fetch() and
  * storage behave as on a web server. The printer bridge is exposed to the page
- * as window.LabelsmithAndroid.
+ * as window.LabelpeelAndroid.
  */
 public class MainActivity extends Activity {
     static final String HOST = "appassets.androidplatform.net";
@@ -80,7 +80,7 @@ public class MainActivity extends Activity {
         s.setAllowContentAccess(false);
 
         bridge = new PrinterBridge(this, webView);
-        webView.addJavascriptInterface(bridge, "LabelsmithAndroid");
+        webView.addJavascriptInterface(bridge, "LabelpeelAndroid");
         AssetClient assets = new AssetClient();
         webView.setWebViewClient(assets);
         // The offline service worker's own fetches bypass the WebViewClient.
@@ -100,7 +100,7 @@ public class MainActivity extends Activity {
     @SuppressWarnings("deprecation")
     public void onBackPressed() {
         // Close the page's open dialog or selection first; leave the app only when there's nothing to close.
-        webView.evaluateJavascript("!!(window.__labelsmithBack && window.__labelsmithBack())", (handled) -> {
+        webView.evaluateJavascript("!!(window.__labelpeelBack && window.__labelpeelBack())", (handled) -> {
             if (!"true".equals(handled)) super.onBackPressed();
         });
     }
@@ -219,7 +219,7 @@ public class MainActivity extends Activity {
             if (fileCallback != null) fileCallback.onReceiveValue(null);
             fileCallback = callback;
             Intent intent = params.createIntent();
-            // Accept lists like ".labelsmith,.json" aren't MIME types; let the user pick any file.
+            // Accept lists like ".labelpeel,.json" aren't MIME types; let the user pick any file.
             intent.setType("*/*");
             try {
                 startActivityForResult(intent, REQ_FILE_CHOOSER);

@@ -4,11 +4,11 @@ import type { LabelDoc, LabelElement } from '../model/types';
 import { applyLabelType } from '../model/labelTypes';
 
 const HISTORY_LIMIT = 200;
-const AUTOSAVE_KEY = 'labelsmith:autosave';
+const AUTOSAVE_KEY = 'labelpeel:autosave';
 /** Open tabs: an index plus one entry per tab, so one large label can't stop the rest saving. */
-const SESSION_KEY = 'labelsmith:session';
-const tabKey = (id: string) => `labelsmith:tab:${id}`;
-const SETTINGS_KEY = 'labelsmith:settings';
+const SESSION_KEY = 'labelpeel:session';
+const tabKey = (id: string) => `labelpeel:tab:${id}`;
+const SETTINGS_KEY = 'labelpeel:settings';
 
 export interface Settings {
   profileId: string;
@@ -404,7 +404,7 @@ useEditor.subscribe((s, prev) => {
       // Drop saved labels whose tabs were closed.
       for (let i = localStorage.length - 1; i >= 0; i--) {
         const k = localStorage.key(i);
-        if (k?.startsWith('labelsmith:tab:') && !tabs.some((t) => tabKey(t.id) === k)) localStorage.removeItem(k);
+        if (k?.startsWith('labelpeel:tab:') && !tabs.some((t) => tabKey(t.id) === k)) localStorage.removeItem(k);
       }
       localStorage.removeItem(AUTOSAVE_KEY);
     } catch {

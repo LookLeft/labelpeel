@@ -10,12 +10,12 @@ export const NOMINAL_PX_PER_MM = 96 / 25.4;
 declare global {
   interface Window {
     /** Set by the Mac app from the display's physical size: CSS px per mm. */
-    __labelsmithScreen?: { pxPerMm: number };
+    __labelpeelScreen?: { pxPerMm: number };
   }
 }
 
 /** Screen pixels per mm measured by the Mac app, if it's hosting the page. */
-export const measuredPxPerMm = () => (typeof window !== 'undefined' ? window.__labelsmithScreen?.pxPerMm : undefined);
+export const measuredPxPerMm = () => (typeof window !== 'undefined' ? window.__labelpeelScreen?.pxPerMm : undefined);
 
 /**
  * CSS pixels per real millimetre on this screen. Calibration is stored in

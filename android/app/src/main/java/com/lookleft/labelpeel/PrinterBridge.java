@@ -1,4 +1,4 @@
-package com.alexbrazier.labelsmith;
+package com.lookleft.labelpeel;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
@@ -40,12 +40,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * The page's "labelsmith" printer bridge on Android, matching the iOS app's
+ * The page's "labelpeel" printer bridge on Android, matching the iOS app's
  * messages: {op: "connect", kind: "bluetooth" | "usb"} → {name, productId?},
  * {op: "write", data: base64},
  * {op: "read", timeoutMs} → base64, {op: "close"}. Android talks to Bluetooth
  * Classic printers like the PT-E560BT over an RFCOMM socket using the Serial
- * Port Profile. Replies go back through window.__labelsmithReply(id, result, error).
+ * Port Profile. Replies go back through window.__labelpeelReply(id, result, error).
  */
 public class PrinterBridge {
     private static final UUID SPP = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb");
@@ -64,7 +64,7 @@ public class PrinterBridge {
 
     // USB: a Brother printer's USB printer-class interface.
     private static final int BROTHER_VENDOR_ID = 0x04f9;
-    private static final String ACTION_USB_PERMISSION = "com.alexbrazier.labelsmith.USB_PERMISSION";
+    private static final String ACTION_USB_PERMISSION = "com.lookleft.labelpeel.USB_PERMISSION";
     private UsbDeviceConnection usbConnection;
     private UsbInterface usbInterface;
     private UsbEndpoint usbOut;
@@ -223,7 +223,7 @@ public class PrinterBridge {
         String id = permissionReplyId;
         permissionReplyId = null;
         if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) chooseDevice(id);
-        else reply(id, null, "Labelsmith needs the Nearby devices permission to use a Bluetooth printer. Allow it in Settings → Apps → Labelsmith → Permissions.");
+        else reply(id, null, "Labelpeel needs the Nearby devices permission to use a Bluetooth printer. Allow it in Settings → Apps → Labelpeel → Permissions.");
     }
 
     @SuppressLint("MissingPermission") // Checked in connect().
@@ -389,12 +389,12 @@ public class PrinterBridge {
     }
 
     private void notifyDisconnect() {
-        activity.runOnUiThread(() -> webView.evaluateJavascript("window.__labelsmithNativeDisconnect && window.__labelsmithNativeDisconnect()", null));
+        activity.runOnUiThread(() -> webView.evaluateJavascript("window.__labelpeelNativeDisconnect && window.__labelpeelNativeDisconnect()", null));
     }
 
     /** Resolve the page's promise. `result` is a JSON literal. */
     private void reply(String id, String result, String error) {
-        String js = "window.__labelsmithReply && window.__labelsmithReply(" + JSONObject.quote(id) + ", "
+        String js = "window.__labelpeelReply && window.__labelpeelReply(" + JSONObject.quote(id) + ", "
                 + (result == null ? "null" : result) + ", " + (error == null ? "null" : JSONObject.quote(error)) + ")";
         activity.runOnUiThread(() -> webView.evaluateJavascript(js, null));
     }

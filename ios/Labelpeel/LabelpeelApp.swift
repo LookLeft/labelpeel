@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct LabelsmithApp: App {
+struct LabelpeelApp: App {
     var body: some Scene {
         WindowGroup {
             WebContainer()

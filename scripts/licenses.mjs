@@ -32,5 +32,5 @@ const out = [...seen.values()]
   .map((p) => `${p.name} ${p.version} (${p.license})\n\n${p.text ?? `Licensed under ${p.license}.`}`)
   .join(`\n\n${rule}\n\n`);
 
-writeFileSync(join(root, 'public', 'licenses.txt'), `Third-party software included in Labelsmith\n\n${rule}\n\n${out}\n`);
+writeFileSync(join(root, 'public', 'licenses.txt'), `Third-party software included in Labelpeel\n\n${rule}\n\n${out}\n`);
 console.log(`licenses.txt: ${seen.size} packages`);

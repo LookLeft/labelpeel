@@ -1,4 +1,4 @@
-// One-file backup of everything Labelsmith keeps in the browser or app: open
+// One-file backup of everything Labelpeel keeps in the browser or app: open
 // labels, the "My labels" library and settings. Browser storage can be
 // cleared (by the browser, the user, or uninstalling an app), so this is the
 // way to keep a copy or move to another browser or device.
@@ -7,7 +7,7 @@ import type { LabelDoc } from '../model/types';
 import { migrate, useEditor, type Settings } from '../state/store';
 import { download, libraryList, libraryPut, pickFile, type LibraryItem } from './files';
 
-const FORMAT = 'labelsmith-backup';
+const FORMAT = 'labelpeel-backup';
 
 interface Backup {
   app: typeof FORMAT;
@@ -32,7 +32,7 @@ export async function exportBackup() {
     library: await libraryList().catch(() => []),
   };
   const day = backup.created.slice(0, 10);
-  download(`labelsmith-backup-${day}.json`, JSON.stringify(backup), 'application/json');
+  download(`labelpeel-backup-${day}.json`, JSON.stringify(backup), 'application/json');
   s.notify(`Backed up ${backup.tabs.length} open label${backup.tabs.length === 1 ? '' : 's'} and ${backup.library.length} saved label${backup.library.length === 1 ? '' : 's'}.`, 'success');
 }
 
@@ -45,7 +45,7 @@ export async function restoreBackup() {
     backup = JSON.parse(await file.text());
     if (backup?.app !== FORMAT || !Array.isArray(backup.tabs)) throw new Error('not a backup');
   } catch {
-    s.notify('That file is not a Labelsmith backup.', 'error');
+    s.notify('That file is not a Labelpeel backup.', 'error');
     return;
   }
 

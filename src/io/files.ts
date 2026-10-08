@@ -3,7 +3,7 @@ import type { DataSource, LabelDoc } from '../model/types';
 import { migrate } from '../state/store';
 import { toB64 } from '../printer/native';
 
-export const FILE_EXT = '.labelsmith';
+export const FILE_EXT = '.labelpeel';
 const MIME = 'application/json';
 
 type Picker = {
@@ -12,11 +12,11 @@ type Picker = {
 };
 const w = () => window as unknown as Picker;
 
-export const serialize = (doc: LabelDoc) => JSON.stringify({ app: 'labelsmith', ...doc }, null, 1);
+export const serialize = (doc: LabelDoc) => JSON.stringify({ app: 'labelpeel', ...doc }, null, 1);
 
 export function parseDoc(text: string): LabelDoc {
   const json = JSON.parse(text);
-  if (!json || typeof json !== 'object' || !Array.isArray(json.elements)) throw new Error('Not a Labelsmith label file.');
+  if (!json || typeof json !== 'object' || !Array.isArray(json.elements)) throw new Error('Not a Labelpeel label file.');
   delete json.app;
   return migrate(json);
 }
@@ -24,7 +24,7 @@ export function parseDoc(text: string): LabelDoc {
 export function download(name: string, data: BlobPart | Uint8Array, type = 'application/octet-stream') {
   const blob = new Blob([data as BlobPart], { type });
   // The Android app's web view can't download in-page files; it shows a save dialog instead.
-  const android = window.LabelsmithAndroid;
+  const android = window.LabelpeelAndroid;
   if (android?.saveFile) {
     blob.arrayBuffer().then((buf) => android.saveFile!(name, type, toB64(new Uint8Array(buf))));
     return;
@@ -49,7 +49,7 @@ export async function saveDoc(doc: LabelDoc, handle: FileSystemFileHandle | null
     if (!h) {
       h = await w().showSaveFilePicker!({
         suggestedName: safeName(doc.name),
-        types: [{ description: 'Labelsmith label', accept: { [MIME]: [FILE_EXT, '.json'] } }],
+        types: [{ description: 'Labelpeel label', accept: { [MIME]: [FILE_EXT, '.json'] } }],
       });
     }
     const writable = await (h as FileSystemFileHandle & { createWritable: () => Promise<FileSystemWritableFileStream> }).createWritable();
@@ -120,7 +120,7 @@ export interface LibraryItem {
 let conn: Promise<IDBDatabase> | null = null;
 function db(): Promise<IDBDatabase> {
   conn ??= new Promise<IDBDatabase>((resolve, reject) => {
-    const req = indexedDB.open('labelsmith', 1);
+    const req = indexedDB.open('labelpeel', 1);
     req.onupgradeneeded = () => req.result.createObjectStore('labels', { keyPath: 'id' });
     req.onsuccess = () => {
       req.result.onclose = () => (conn = null);

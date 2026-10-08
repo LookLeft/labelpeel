@@ -30,7 +30,7 @@ function useShortcuts() {
       }
       const mod = e.ctrlKey || e.metaKey;
       const k = e.key.toLowerCase();
-      const zoom = (detail: string) => window.dispatchEvent(new CustomEvent('labelsmith-zoom', { detail }));
+      const zoom = (detail: string) => window.dispatchEvent(new CustomEvent('labelpeel-zoom', { detail }));
       if (mod && k === 'z' && !e.shiftKey) return void (e.preventDefault(), s.undo());
       if (mod && (k === 'y' || (k === 'z' && e.shiftKey))) return void (e.preventDefault(), s.redo());
       if (mod && k === 's') return void (e.preventDefault(), save(e.shiftKey));
@@ -161,7 +161,7 @@ export default function App() {
   }, []);
   useEffect(() => {
     // Called by the Android app's back button; true means something was closed.
-    (window as unknown as { __labelsmithBack?: () => boolean }).__labelsmithBack = () => {
+    (window as unknown as { __labelpeelBack?: () => boolean }).__labelpeelBack = () => {
       const s = useEditor.getState();
       if (s.wizardOpen || s.printOpen || s.printerOpen || s.aboutOpen || s.calibrateOpen || s.editingTextId) {
         s.set({ wizardOpen: false, printOpen: false, printerOpen: false, aboutOpen: false, calibrateOpen: false, editingTextId: null });

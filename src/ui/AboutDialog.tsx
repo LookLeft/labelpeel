@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { useEditor } from '../state/store';
 
 export const TRADEMARK_NOTICE =
-  'Labelsmith is an independent project and is not affiliated with, endorsed by or sponsored by Brother Industries, Ltd. ' +
+  'Labelpeel is an independent project and is not affiliated with, endorsed by or sponsored by Brother Industries, Ltd. ' +
   'Brother, P-touch, TZe, HSe and FLe are trademarks of Brother Industries, Ltd. Printer model names are used only to describe compatibility.';
 
 export function AboutDialog() {
@@ -25,7 +25,7 @@ export function AboutDialog() {
       <div className="modal narrow">
         <div className="modal-head">
           <img className="brand-mark" src="./icon-192.png" alt="" />
-          <h2>Labelsmith</h2>
+          <h2>Labelpeel</h2>
           <span className="hint">v{__APP_VERSION__}</span>
           <div className="spacer" />
           <button className="btn ghost icon" onClick={close}>

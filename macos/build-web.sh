@@ -13,5 +13,5 @@ else
   echo "Install XcodeGen (brew install xcodegen), then run: cd macos && xcodegen"
   exit 1
 fi
-echo "Done. Open macos/LabelsmithMac.xcodeproj in Xcode, or build from the command line:"
-echo "  xcodebuild -project macos/LabelsmithMac.xcodeproj -scheme Labelsmith -configuration Release build"
+echo "Done. Open macos/LabelpeelMac.xcodeproj in Xcode, or build from the command line:"
+echo "  xcodebuild -project macos/LabelpeelMac.xcodeproj -scheme Labelpeel -configuration Release build"

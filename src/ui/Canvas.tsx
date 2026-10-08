@@ -774,8 +774,8 @@ export function EditorCanvas() {
         return { zoom, panX: cx - mx * zoom, panY: cy - my * zoom };
       });
     };
-    window.addEventListener('labelsmith-zoom', onZoom);
-    return () => window.removeEventListener('labelsmith-zoom', onZoom);
+    window.addEventListener('labelpeel-zoom', onZoom);
+    return () => window.removeEventListener('labelpeel-zoom', onZoom);
   }, [fit, size]);
 
   // ---------------------------------------------------------------- overlay
@@ -913,13 +913,13 @@ export function EditorCanvas() {
           <Grid3x3 size={15} />
         </button>
         <div className="sep" />
-        <button className="btn ghost icon sm" title="Zoom out (Ctrl -)" onClick={() => window.dispatchEvent(new CustomEvent('labelsmith-zoom', { detail: 'out' }))}>
+        <button className="btn ghost icon sm" title="Zoom out (Ctrl -)" onClick={() => window.dispatchEvent(new CustomEvent('labelpeel-zoom', { detail: 'out' }))}>
           <Minus size={15} />
         </button>
         <span className="pct" title={isCalibrated(settings) ? '100% is actual size' : 'Calibrate in View → Calibrate actual size for 100% to match real size'}>
           {Math.round((view.zoom / actualPxPerMm(settings)) * 100)}%
         </span>
-        <button className="btn ghost icon sm" title="Zoom in (Ctrl +)" onClick={() => window.dispatchEvent(new CustomEvent('labelsmith-zoom', { detail: 'in' }))}>
+        <button className="btn ghost icon sm" title="Zoom in (Ctrl +)" onClick={() => window.dispatchEvent(new CustomEvent('labelpeel-zoom', { detail: 'in' }))}>
           <Plus size={15} />
         </button>
         <button className="btn ghost icon sm" title="Fit (Ctrl 0)" onClick={fit}>

@@ -4,8 +4,8 @@ import UniformTypeIdentifiers
 import WebKit
 
 /// Hosts the bundled web app in a WKWebView, served from the app bundle over a
-/// private labelsmith:// scheme (BundleSchemeHandler), with the IOBluetooth
-/// printer bridge exposed as window.webkit.messageHandlers.labelsmith.
+/// private labelpeel:// scheme (BundleSchemeHandler), with the IOBluetooth
+/// printer bridge exposed as window.webkit.messageHandlers.labelpeel.
 struct WebContainer: NSViewControllerRepresentable {
     func makeNSViewController(context: Context) -> WebViewController { WebViewController() }
     func updateNSViewController(_ vc: WebViewController, context: Context) {}
@@ -20,10 +20,10 @@ final class WebViewController: NSViewController, WKUIDelegate, WKNavigationDeleg
         let config = WKWebViewConfiguration()
         let root = Bundle.main.url(forResource: "Web", withExtension: nil)
         config.setURLSchemeHandler(BundleSchemeHandler(root: root), forURLScheme: BundleSchemeHandler.scheme)
-        config.userContentController.addScriptMessageHandler(bridge, contentWorld: .page, name: "labelsmith")
+        config.userContentController.addScriptMessageHandler(bridge, contentWorld: .page, name: "labelpeel")
         // Lets the page tell the Mac app from the iPad app (iPads also report a Mac platform).
         config.userContentController.addUserScript(WKUserScript(
-            source: "window.__labelsmithPlatform = 'macos';" + Self.screenScript(NSScreen.main),
+            source: "window.__labelpeelPlatform = 'macos';" + Self.screenScript(NSScreen.main),
             injectionTime: .atDocumentStart, forMainFrameOnly: true))
 
         webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 1280, height: 820), configuration: config)
@@ -62,8 +62,8 @@ final class WebViewController: NSViewController, WKUIDelegate, WKNavigationDeleg
     }
 
     static func screenScript(_ screen: NSScreen?) -> String {
-        guard let ppm = pointsPerMm(screen) else { return "window.__labelsmithScreen = undefined;" }
-        return "window.__labelsmithScreen = { pxPerMm: \(ppm) };"
+        guard let ppm = pointsPerMm(screen) else { return "window.__labelpeelScreen = undefined;" }
+        return "window.__labelpeelScreen = { pxPerMm: \(ppm) };"
     }
 
     override func viewDidAppear() {

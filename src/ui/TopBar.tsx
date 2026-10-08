@@ -53,9 +53,9 @@ export function TopBar() {
 
   return (
     <header className="topbar">
-      <button className="brand" onClick={() => st().set({ aboutOpen: true })} title="About Labelsmith">
+      <button className="brand" onClick={() => st().set({ aboutOpen: true })} title="About Labelpeel">
         <img className="brand-mark" src="./icon-192.png" alt="" />
-        <span className="brand-name">Labelsmith</span>
+        <span className="brand-name">Labelpeel</span>
       </button>
       <Menu label="File">
         {(close) => (
@@ -84,10 +84,10 @@ export function TopBar() {
       <Menu label="View">
         {(close) => (
           <>
-            <Item label="Zoom in" kbd={`${mod}+`} onClick={() => { close(); window.dispatchEvent(new CustomEvent('labelsmith-zoom', { detail: 'in' })); }} />
-            <Item label="Zoom out" kbd={`${mod}-`} onClick={() => { close(); window.dispatchEvent(new CustomEvent('labelsmith-zoom', { detail: 'out' })); }} />
-            <Item label="Fit label" kbd={`${mod}0`} onClick={() => { close(); window.dispatchEvent(new CustomEvent('labelsmith-zoom', { detail: 'fit' })); }} />
-            <Item label="Actual size (100%)" kbd={`${mod}1`} onClick={() => { close(); window.dispatchEvent(new CustomEvent('labelsmith-zoom', { detail: '100' })); }} />
+            <Item label="Zoom in" kbd={`${mod}+`} onClick={() => { close(); window.dispatchEvent(new CustomEvent('labelpeel-zoom', { detail: 'in' })); }} />
+            <Item label="Zoom out" kbd={`${mod}-`} onClick={() => { close(); window.dispatchEvent(new CustomEvent('labelpeel-zoom', { detail: 'out' })); }} />
+            <Item label="Fit label" kbd={`${mod}0`} onClick={() => { close(); window.dispatchEvent(new CustomEvent('labelpeel-zoom', { detail: 'fit' })); }} />
+            <Item label="Actual size (100%)" kbd={`${mod}1`} onClick={() => { close(); window.dispatchEvent(new CustomEvent('labelpeel-zoom', { detail: '100' })); }} />
             <Item label="Calibrate actual size…" onClick={() => { close(); st().set({ calibrateOpen: true }); }} />
             <div className="menu-sep" />
             <Item label={`${st().dotPreview ? '✓ ' : ''}Dot preview (exact print)`} onClick={() => { close(); st().set({ dotPreview: !st().dotPreview }); }} />
@@ -108,7 +108,7 @@ export function TopBar() {
             <Item icon={<Moon size={15} />} label={`${theme === 'dark' ? '✓ ' : ''}Theme: dark`} onClick={() => { close(); st().setSettings({ theme: 'dark' }); }} />
             <Item icon={<Sun size={15} />} label={`${theme === 'light' ? '✓ ' : ''}Theme: light`} onClick={() => { close(); st().setSettings({ theme: 'light' }); }} />
             <div className="menu-sep" />
-            <Item icon={<Info size={15} />} label="About Labelsmith" onClick={() => { close(); st().set({ aboutOpen: true }); }} />
+            <Item icon={<Info size={15} />} label="About Labelpeel" onClick={() => { close(); st().set({ aboutOpen: true }); }} />
           </>
         )}
       </Menu>

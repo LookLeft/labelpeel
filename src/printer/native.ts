@@ -1,5 +1,5 @@
 // Transport for the native apps (ios/, macos/ and android/). Each app hosts this build
-// in a web view and exposes a "labelsmith" bridge that talks to the printer
+// in a web view and exposes a "labelpeel" bridge that talks to the printer
 // over Bluetooth Classic: External Accessory on iOS, IOBluetooth on macOS, an
 // RFCOMM socket on Android. Bytes cross the bridge as base64.
 
@@ -9,7 +9,7 @@ interface NativeHandler {
   postMessage(msg: unknown): Promise<unknown>;
 }
 
-/** Android's JavaScript interface: replies arrive via window.__labelsmithReply. */
+/** Android's JavaScript interface: replies arrive via window.__labelpeelReply. */
 interface AndroidBridge {
   postMessage(json: string, id: string): void;
   saveFile?(name: string, mime: string, base64: string): void;
@@ -17,12 +17,12 @@ interface AndroidBridge {
 
 declare global {
   interface Window {
-    webkit?: { messageHandlers?: { labelsmith?: NativeHandler } };
-    LabelsmithAndroid?: AndroidBridge;
-    __labelsmithNativeDisconnect?: () => void;
+    webkit?: { messageHandlers?: { labelpeel?: NativeHandler } };
+    LabelpeelAndroid?: AndroidBridge;
+    __labelpeelNativeDisconnect?: () => void;
     /** Set by the macOS app before the page loads (iPads also report a Mac platform). */
-    __labelsmithPlatform?: 'macos';
-    __labelsmithReply?: (id: string, result: unknown, error: string | null) => void;
+    __labelpeelPlatform?: 'macos';
+    __labelpeelReply?: (id: string, result: unknown, error: string | null) => void;
   }
 }
 
@@ -31,11 +31,11 @@ let nextId = 0;
 
 const handler = (): NativeHandler | undefined => {
   if (typeof window === 'undefined') return undefined;
-  const ios = window.webkit?.messageHandlers?.labelsmith;
+  const ios = window.webkit?.messageHandlers?.labelpeel;
   if (ios) return ios;
-  const android = window.LabelsmithAndroid;
+  const android = window.LabelpeelAndroid;
   if (!android) return undefined;
-  window.__labelsmithReply ??= (id, result, error) => {
+  window.__labelpeelReply ??= (id, result, error) => {
     const p = pending.get(id);
     pending.delete(id);
     if (error) p?.reject(new Error(error));
@@ -55,8 +55,8 @@ export const supportsNative = () => !!handler();
 /** Which native app is hosting the page, if any. */
 export const nativePlatform = (): 'android' | 'macos' | 'ios' | null => {
   if (!supportsNative()) return null;
-  if (window.LabelsmithAndroid) return 'android';
-  return window.__labelsmithPlatform === 'macos' ? 'macos' : 'ios';
+  if (window.LabelpeelAndroid) return 'android';
+  return window.__labelpeelPlatform === 'macos' ? 'macos' : 'ios';
 };
 
 const call = async <T>(op: string, args: Record<string, unknown> = {}): Promise<T> => {
@@ -91,10 +91,10 @@ export async function connectNative(kind: 'bluetooth' | 'usb' = 'bluetooth'): Pr
       return b64 ? fromB64(b64) : new Uint8Array();
     },
     async close() {
-      window.__labelsmithNativeDisconnect = undefined;
+      window.__labelpeelNativeDisconnect = undefined;
       await call('close').catch(() => undefined);
     },
   };
-  window.__labelsmithNativeDisconnect = () => t.onDisconnect?.();
+  window.__labelpeelNativeDisconnect = () => t.onDisconnect?.();
   return t;
 }

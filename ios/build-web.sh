@@ -13,4 +13,4 @@ else
   echo "Install XcodeGen (brew install xcodegen), then run: cd ios && xcodegen"
   exit 1
 fi
-echo "Done. Open ios/Labelsmith.xcodeproj in Xcode."
+echo "Done. Open ios/Labelpeel.xcodeproj in Xcode."

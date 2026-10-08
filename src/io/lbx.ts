@@ -5,12 +5,12 @@
 // embedded bitmaps (24-bit BMPs). The mapping below follows files written by
 // P-touch Editor (see examples/). All geometry is in points; the paper's width
 // is the tape width and, in landscape, objects' x runs along the tape, which
-// matches Labelsmith's design space, so coordinates map one to one.
+// matches Labelpeel's design space, so coordinates map one to one.
 //
 // Export writes the objects P-touch Editor can represent the same way it does
 // (text, rectangles, plain tables, Code 128), so they stay editable there.
 // Anything else (symbols, other shapes, frames, QR codes, filled cells…) is
-// rendered exactly as Labelsmith prints it and embedded as an image.
+// rendered exactly as Labelpeel prints it and embedded as an image.
 
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { defaultTextStyle, makeTable, newDoc, printableRect, uid } from '../model/defaults';
@@ -629,7 +629,7 @@ export async function exportLbx(doc: LabelDoc, dateFormat?: string): Promise<Lbx
   const textOut = (el: TextElement, text: string): TextOut => {
     let sizePt = el.size;
     if (el.autoSize) {
-      // P-touch Editor stores a font size, so fix the size Labelsmith fits.
+      // P-touch Editor stores a font size, so fix the size Labelpeel fits.
       const b = layout.boxes.get(el.id) ?? el;
       sizePt = render.fitText(text, el, b.w, b.h, true, el.size, el.autoWidth, el.stacked).em / PT;
     }
@@ -687,7 +687,7 @@ export async function exportLbx(doc: LabelDoc, dateFormat?: string): Promise<Lbx
         break;
       case 'barcode': {
         const data = resolved(el.data);
-        // Labelsmith's module width (whole 180 dpi dots), so P-touch Editor
+        // Labelpeel's module width (whole 180 dpi dots), so P-touch Editor
         // draws the code the same width.
         const enc = encodeBarcode('code128', data);
         const dots = enc instanceof Error || enc.kind !== '1d' ? 2 : Math.max(1, Math.floor((b.w * (180 / 25.4)) / enc.width));
@@ -730,8 +730,8 @@ export async function exportLbx(doc: LabelDoc, dateFormat?: string): Promise<Lbx
   const now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
   const prop =
     `<?xml version="1.0" encoding="UTF-8"?>\n<meta:properties xmlns:meta="http://schemas.brother.info/ptouch/2007/lbx/meta" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/">` +
-    `<meta:appName>P-touch Editor</meta:appName><dc:title>${esc(doc.name)}</dc:title><dc:subject></dc:subject><dc:creator>Labelsmith</dc:creator><meta:keyword></meta:keyword><dc:description></dc:description><meta:template></meta:template>` +
-    `<dcterms:created>${now}</dcterms:created><dcterms:modified>${now}</dcterms:modified><meta:lastPrinted></meta:lastPrinted><meta:modifiedBy>Labelsmith</meta:modifiedBy><meta:revision>1</meta:revision><meta:editTime>0</meta:editTime>` +
+    `<meta:appName>P-touch Editor</meta:appName><dc:title>${esc(doc.name)}</dc:title><dc:subject></dc:subject><dc:creator>Labelpeel</dc:creator><meta:keyword></meta:keyword><dc:description></dc:description><meta:template></meta:template>` +
+    `<dcterms:created>${now}</dcterms:created><dcterms:modified>${now}</dcterms:modified><meta:lastPrinted></meta:lastPrinted><meta:modifiedBy>Labelpeel</meta:modifiedBy><meta:revision>1</meta:revision><meta:editTime>0</meta:editTime>` +
     `<meta:numPages>1</meta:numPages><meta:numWords>0</meta:numWords><meta:numChars>0</meta:numChars><meta:security>0</meta:security><meta:transferScript></meta:transferScript></meta:properties>`;
   // label.xml first, then images, then prop.xml, as P-touch Editor writes them.
   const zip: Record<string, Uint8Array> = { 'label.xml': strToU8(label) };

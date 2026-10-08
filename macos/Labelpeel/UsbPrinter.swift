@@ -23,7 +23,7 @@ final class UsbPrinter {
     private let interface: IOUSBHostInterface
     private let outPipe: IOUSBHostPipe
     private let inPipe: IOUSBHostPipe?
-    private let queue = DispatchQueue(label: "labelsmith.usb")
+    private let queue = DispatchQueue(label: "labelpeel.usb")
     private var open = true
 
     /// Called on the main thread.

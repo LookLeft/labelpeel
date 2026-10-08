@@ -2,14 +2,14 @@ import Sparkle
 import SwiftUI
 
 @main
-struct LabelsmithMacApp: App {
+struct LabelpeelMacApp: App {
     @NSApplicationDelegateAdaptor private var delegate: AppDelegate
     /// Checks GitHub releases for updates (daily, and from the app menu).
     private let updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
 
     var body: some Scene {
         // One window: the printer accepts one connection at a time.
-        Window("Labelsmith", id: "main") {
+        Window("Labelpeel", id: "main") {
             WebContainer()
                 .frame(minWidth: 760, minHeight: 520)
         }

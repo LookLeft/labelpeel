@@ -29,7 +29,7 @@ export function CalibrateDialog() {
   // Up to 10 cm, in whole centimetres that fit the dialog.
   const rulerMm = Math.max(20, Math.min(100, Math.floor(room / pxPerMm / 10) * 10));
   const nudge = (k: number) => setPxPerMm((v) => Math.max(NOMINAL_PX_PER_MM * 0.4, Math.min(NOMINAL_PX_PER_MM * 3, v * k)));
-  const zoom100 = () => window.dispatchEvent(new CustomEvent('labelsmith-zoom', { detail: '100' }));
+  const zoom100 = () => window.dispatchEvent(new CustomEvent('labelpeel-zoom', { detail: '100' }));
 
   return (
     <div className="modal-back" onPointerDown={(e) => e.target === e.currentTarget && close()}>

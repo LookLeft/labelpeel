@@ -3,8 +3,8 @@ import UIKit
 import WebKit
 
 /// Hosts the bundled web app in a WKWebView, served from the app bundle over
-/// a private labelsmith:// scheme so ES modules and fetch() behave as on a web
-/// server, with the printer bridge exposed as window.webkit.messageHandlers.labelsmith.
+/// a private labelpeel:// scheme so ES modules and fetch() behave as on a web
+/// server, with the printer bridge exposed as window.webkit.messageHandlers.labelpeel.
 struct WebContainer: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> WebViewController { WebViewController() }
     func updateUIViewController(_ vc: WebViewController, context: Context) {}
@@ -23,7 +23,7 @@ final class WebViewController: UIViewController, WKUIDelegate, WKNavigationDeleg
         let config = WKWebViewConfiguration()
         let root = Bundle.main.url(forResource: "Web", withExtension: nil)
         config.setURLSchemeHandler(BundleSchemeHandler(root: root), forURLScheme: BundleSchemeHandler.scheme)
-        config.userContentController.addScriptMessageHandler(bridge, contentWorld: .page, name: "labelsmith")
+        config.userContentController.addScriptMessageHandler(bridge, contentWorld: .page, name: "labelpeel")
 
         webView = WKWebView(frame: .zero, configuration: config)
         webView.uiDelegate = self

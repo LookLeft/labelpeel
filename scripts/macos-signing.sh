@@ -29,7 +29,7 @@ case "$1" in
     fi
     "$OPENSSL" req -new -newkey rsa:2048 -nodes \
       -keyout secrets/developer-id.key -out secrets/developer-id.csr \
-      -subj "/CN=Labelsmith Developer ID/O=Labelsmith"
+      -subj "/CN=Labelpeel Developer ID/O=Labelpeel"
     echo "Created secrets/developer-id.csr. Upload it as a Developer ID Application certificate"
     echo "(G2 Sub-CA) at https://developer.apple.com/account/resources/certificates/add"
     echo "and save the downloaded .cer in secrets/."
@@ -51,7 +51,7 @@ case "$1" in
       -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1
     KEY_ID=$(basename "$KEY_FILE" .p8 | sed 's/^AuthKey_//')
     cat > secrets/macos-signing.env <<EOF
-# macOS signing and notarization for Labelsmith. Keep secrets/ private and
+# macOS signing and notarization for Labelpeel. Keep secrets/ private and
 # backed up. Add each value as a repository secret on GitHub:
 #   Settings → Secrets and variables → Actions → New repository secret
 MACOS_CERTIFICATE_BASE64=$(base64 -i secrets/developer-id.p12 | tr -d '\n')

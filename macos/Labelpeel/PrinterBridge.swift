@@ -3,7 +3,7 @@ import Foundation
 import IOBluetooth
 import WebKit
 
-/// The "labelsmith" script message handler on macOS. Unlike a browser, which
+/// The "labelpeel" script message handler on macOS. Unlike a browser, which
 /// can only open the cu.* serial port macOS keeps for every paired device
 /// (even when it's off), this opens an RFCOMM channel straight to the paired
 /// printer with IOBluetooth, so connecting fails if the printer isn't there.
@@ -276,6 +276,6 @@ final class PrinterBridge: NSObject, WKScriptMessageHandlerWithReply, IOBluetoot
     }
 
     private func notifyDisconnect() {
-        webView?.evaluateJavaScript("window.__labelsmithNativeDisconnect && window.__labelsmithNativeDisconnect()")
+        webView?.evaluateJavaScript("window.__labelpeelNativeDisconnect && window.__labelpeelNativeDisconnect()")
     }
 }

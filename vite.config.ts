@@ -16,8 +16,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon-32.png', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Labelsmith',
-        short_name: 'Labelsmith',
+        name: 'Labelpeel',
+        short_name: 'Labelpeel',
         description: 'Design and print labels on Brother P-touch compatible label printers from the browser. Not affiliated with Brother.',
         theme_color: '#111827',
         background_color: '#111827',

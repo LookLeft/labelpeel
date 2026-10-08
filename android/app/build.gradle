@@ -8,11 +8,11 @@ plugins {
 def keystorePath = System.getenv('ANDROID_KEYSTORE_PATH')
 
 android {
-    namespace 'com.alexbrazier.labelsmith'
+    namespace 'com.lookleft.labelpeel'
     compileSdk 35
 
     defaultConfig {
-        applicationId 'com.alexbrazier.labelsmith'
+        applicationId 'com.lookleft.labelpeel'
         minSdk 26
         targetSdk 35
         versionCode((project.findProperty('versionCode') ?: '1') as int)

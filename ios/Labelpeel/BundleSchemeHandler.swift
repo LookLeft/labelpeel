@@ -3,7 +3,7 @@ import WebKit
 
 /// Serves files from the bundled Web folder. Shared by the iOS and macOS apps.
 final class BundleSchemeHandler: NSObject, WKURLSchemeHandler {
-    static let scheme = "labelsmith"
+    static let scheme = "labelpeel"
     private let root: URL?
 
     init(root: URL?) {

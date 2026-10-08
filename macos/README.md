@@ -1,4 +1,4 @@
-# Labelsmith for Mac
+# Labelpeel for Mac
 
 A small native app around the web app. It shows the same app in a WebKit view
 and adds a printer bridge:
@@ -11,8 +11,8 @@ and adds a printer bridge:
 
 ## Installing
 
-Download `Labelsmith-<version>.dmg` from the [latest release](../../../releases/latest),
-open it and drag Labelsmith to Applications.
+Download `Labelpeel-<version>.dmg` from the [latest release](../../../releases/latest),
+open it and drag Labelpeel to Applications.
 
 ## Printing
 
@@ -28,10 +28,10 @@ Needs Xcode and XcodeGen (`brew install xcodegen`).
 
 ```sh
 macos/build-web.sh   # builds the web app into the app and generates the Xcode project
-open macos/LabelsmithMac.xcodeproj
+open macos/LabelpeelMac.xcodeproj
 ```
 
-Safari → Develop → Labelsmith opens the web inspector.
+Safari → Develop → Labelpeel opens the web inspector.
 
 ## Releases: signing and notarization
 
@@ -65,7 +65,7 @@ warns that it can't check it.
 
 The app updates itself with [Sparkle](https://sparkle-project.org). It checks
 `appcast.xml` on the latest GitHub release once a day (and on demand from
-**Labelsmith → Check for Updates…**). When a newer version is there, it offers
+**Labelpeel → Check for Updates…**). When a newer version is there, it offers
 to download the `.dmg`, checks it was signed with the update key and replaces
 the app.
 

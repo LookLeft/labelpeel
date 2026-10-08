@@ -1,8 +1,8 @@
-# Labelsmith
+# Labelpeel
 
 A label designer for Brother P-touch printers that runs in the browser and prints directly over Bluetooth or USB, with small native apps for Mac, Android and iPhone/iPad. It was built first for the **PT-E560BT** and has profiles for the rest of the PT range.
 
-> Labelsmith is an independent project. It is not affiliated with, endorsed by or sponsored by Brother Industries, Ltd. Brother, P-touch, TZe, HSe and FLe are trademarks of Brother Industries, Ltd.; they and printer model names are used here only to describe compatibility.
+> Labelpeel is an independent project. It is not affiliated with, endorsed by or sponsored by Brother Industries, Ltd. Brother, P-touch, TZe, HSe and FLe are trademarks of Brother Industries, Ltd.; they and printer model names are used here only to describe compatibility.
 
 It is a static site, so it deploys to GitHub Pages and works offline as an installable app.
 
@@ -47,7 +47,7 @@ It is a static site, so it deploys to GitHub Pages and works offline as an insta
   - copies, and splitting a long design into several labels
 - **Preview.** A dot-accurate preview shows exactly what the print head will print, on the full width of the tape, laid out as the strip that comes out of the printer with its cuts marked. Anything outside the printable area is shown in red with a warning. You can also export a PNG or a raw `.bin` print file.
 - **Tabs.** Work on several labels at once, each with its own undo history and zoom. Double-click a tab to rename it. Print all open labels as one job to save tape.
-- **Files.** Save, Save As and Open use `.labelsmith` (JSON) files, with a local library of saved labels, and open tabs are restored when you come back. **File → Back up everything** saves all of it to one file.
+- **Files.** Save, Save As and Open use `.labelpeel` (JSON) files, with a local library of saved labels, and open tabs are restored when you come back. **File → Back up everything** saves all of it to one file.
 - **Brother `.lbx` import** (see below).
 
 ## Printing
@@ -74,15 +74,15 @@ Open tabs, **My labels** (File → Save to My labels) and settings are kept in t
 | | Location | Updates | Uninstalling |
 | --- | --- | --- | --- |
 | Website | The browser's storage for the site | Kept | Lost if you clear the site's data; Safari also clears sites you haven't used for 7 days |
-| Mac app | `~/Library/WebKit/com.alexbrazier.labelsmith.mac/WebsiteData` | Kept | Kept if you only move the app to the Bin; deleting that folder removes it |
+| Mac app | `~/Library/WebKit/com.lookleft.labelpeel.mac/WebsiteData` | Kept | Kept if you only move the app to the Bin; deleting that folder removes it |
 | iPhone / iPad app | The app's container | Kept | Deleted with the app |
 | Android app | The app's data | Kept | Deleted with the app (and if you clear the app's storage) |
 
-The app asks the browser to keep its storage permanently, but browser storage is never a guaranteed archive. Save labels you care about as `.labelsmith` files, or use **File → Back up everything**, which saves open labels, My labels and settings in one `.json` file. **File → Restore from backup** brings them back on any device, without overwriting newer copies.
+The app asks the browser to keep its storage permanently, but browser storage is never a guaranteed archive. Save labels you care about as `.labelpeel` files, or use **File → Back up everything**, which saves open labels, My labels and settings in one `.json` file. **File → Restore from backup** brings them back on any device, without overwriting newer copies.
 
 ## Brother's own file format (.lbx)
 
-P-touch Editor saves `.lbx` files: a ZIP archive with `label.xml` (the layout, in Brother's undocumented XML schema), `prop.xml` and any embedded images. Labelsmith both reads and writes them, matched against files saved by P-touch Editor. `test/lbx.test.ts` checks the same structures with small generated files; put real P-touch Editor files in `examples/` (not committed) to also test against those.
+P-touch Editor saves `.lbx` files: a ZIP archive with `label.xml` (the layout, in Brother's undocumented XML schema), `prop.xml` and any embedded images. Labelpeel both reads and writes them, matched against files saved by P-touch Editor. `test/lbx.test.ts` checks the same structures with small generated files; put real P-touch Editor files in `examples/` (not committed) to also test against those.
 
 **File → Import P-touch Editor .lbx** brings in:
 
@@ -95,7 +95,7 @@ P-touch Editor saves `.lbx` files: a ZIP archive with `label.xml` (the layout, i
 
 Brother's fonts are mapped to the closest bundled font (Helsinki to Inter, Helsinki Narrow and Utah Condensed to Roboto Condensed, and so on). Anything it can't map is listed after import, for example mixed styles within one text box, justified text, or P-touch Editor's decorative frames (imported as plain frames).
 
-**File → Export for P-touch Editor (.lbx)** writes text, rectangles, plain tables and Code 128 barcodes as normal P-touch Editor objects, so they stay editable there. Everything else (symbols, other shapes and frames, QR and other codes, blocks, filled table cells, white-on-black or rotated text, the label frame) is written as an image of exactly what Labelsmith prints, and smart fields are written as their current values. A message after export lists anything written this way.
+**File → Export for P-touch Editor (.lbx)** writes text, rectangles, plain tables and Code 128 barcodes as normal P-touch Editor objects, so they stay editable there. Everything else (symbols, other shapes and frames, QR and other codes, blocks, filled table cells, white-on-black or rotated text, the label frame) is written as an image of exactly what Labelpeel prints, and smart fields are written as their current values. A message after export lists anything written this way.
 
 ## Mac app
 
@@ -150,6 +150,6 @@ Main folders:
 
 The protocol details come from [ptouch-print](https://git.familie-radermacher.ch/linux/ptouch-print.git), [ptouch-rs](https://github.com/vowstar/ptouch-rs), [ptouch-webapp](https://github.com/the78mole/ptouch-webapp) and Brother's raster command reference. No code from those projects is included; they were used as references for the printer's command protocol. Brother's `.lbx` format is read only so you can import your own files.
 
-Brother, P-touch, TZe, HSe and FLe are trademarks of Brother Industries, Ltd. Labelsmith is not affiliated with Brother.
+Brother, P-touch, TZe, HSe and FLe are trademarks of Brother Industries, Ltd. Labelpeel is not affiliated with Brother.
 
-Third-party open-source licences for everything bundled in the app are collected into `licenses.txt` at build time (`scripts/licenses.mjs`) and shown under **View → About Labelsmith**.
+Third-party open-source licences for everything bundled in the app are collected into `licenses.txt` at build time (`scripts/licenses.mjs`) and shown under **View → About Labelpeel**.

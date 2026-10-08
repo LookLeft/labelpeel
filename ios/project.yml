@@ -1,8 +1,8 @@
 # Generate the Xcode project with XcodeGen (brew install xcodegen), from this
 # folder: `xcodegen`. ./build-web.sh does both steps.
-name: Labelsmith
+name: Labelpeel
 options:
-  bundleIdPrefix: com.alexbrazier
+  bundleIdPrefix: com.lookleft
   deploymentTarget:
     iOS: "16.0"
 settings:
@@ -11,11 +11,11 @@ settings:
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
 targets:
-  Labelsmith:
+  Labelpeel:
     type: application
     platform: iOS
     sources:
-      - path: Labelsmith
+      - path: Labelpeel
       # The built web app (copied from ../dist by build-web.sh), bundled as a
       # folder so its relative paths stay intact.
       - path: Web
@@ -23,16 +23,16 @@ targets:
         buildPhase: resources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.alexbrazier.labelsmith
+        PRODUCT_BUNDLE_IDENTIFIER: com.lookleft.labelpeel
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: JK8FC72ZE9
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: NO
     info:
-      path: Labelsmith/Info.plist
+      path: Labelpeel/Info.plist
       properties:
-        CFBundleDisplayName: Labelsmith
+        CFBundleDisplayName: Labelpeel
         # From the build settings, so CI can set the release version.
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
@@ -53,4 +53,4 @@ targets:
         # framework (Bluetooth Classic printers are MFi accessories on iOS).
         UISupportedExternalAccessoryProtocols:
           - com.brother.ptcbp
-        NSBluetoothAlwaysUsageDescription: Labelsmith connects to your label printer over Bluetooth to print your designs.
+        NSBluetoothAlwaysUsageDescription: Labelpeel connects to your label printer over Bluetooth to print your designs.

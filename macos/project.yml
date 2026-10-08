@@ -1,8 +1,8 @@
 # macOS app. Generate the Xcode project with XcodeGen (brew install xcodegen),
 # from this folder: `xcodegen`. ./build-web.sh does both steps.
-name: LabelsmithMac
+name: LabelpeelMac
 options:
-  bundleIdPrefix: com.alexbrazier
+  bundleIdPrefix: com.lookleft
   deploymentTarget:
     macOS: "13.0"
 packages:
@@ -17,13 +17,13 @@ settings:
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
 targets:
-  Labelsmith:
+  Labelpeel:
     type: application
     platform: macOS
     sources:
-      - path: Labelsmith
+      - path: Labelpeel
       # Shared with the iOS app.
-      - path: ../ios/Labelsmith/BundleSchemeHandler.swift
+      - path: ../ios/Labelpeel/BundleSchemeHandler.swift
       # The built web app (copied from ../dist by build-web.sh).
       - path: Web
         type: folder
@@ -46,8 +46,8 @@ targets:
           "${SIGN[@]}" "$F"
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.alexbrazier.labelsmith.mac
-        PRODUCT_NAME: Labelsmith
+        PRODUCT_BUNDLE_IDENTIFIER: com.lookleft.labelpeel.mac
+        PRODUCT_NAME: Labelpeel
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: JK8FC72ZE9
         ENABLE_HARDENED_RUNTIME: YES
@@ -56,18 +56,18 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: NO
     info:
-      path: Labelsmith/Info.plist
+      path: Labelpeel/Info.plist
       properties:
-        CFBundleDisplayName: Labelsmith
+        CFBundleDisplayName: Labelpeel
         # From the build settings, so CI can set the release version.
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.productivity
-        NSBluetoothAlwaysUsageDescription: Labelsmith connects to your label printer over Bluetooth to print your designs.
-        NSHumanReadableCopyright: Labelsmith is not affiliated with Brother Industries, Ltd.
+        NSBluetoothAlwaysUsageDescription: Labelpeel connects to your label printer over Bluetooth to print your designs.
+        NSHumanReadableCopyright: Labelpeel is not affiliated with Brother Industries, Ltd.
         # Updates: each release attaches an appcast.xml for its version, and
         # GitHub's "latest" link always points at the newest one.
-        SUFeedURL: https://github.com/alexbrazier/labelsmith/releases/latest/download/appcast.xml
+        SUFeedURL: https://github.com/LookLeft/labelpeel/releases/latest/download/appcast.xml
         # Updates must be signed with the matching private key (SPARKLE_PRIVATE_KEY secret).
         SUPublicEDKey: 6DNBuuJ4QDkBBNsnIZe/u589/wF+oqBc2Vh5xcxoWdQ=
         SUEnableAutomaticChecks: true

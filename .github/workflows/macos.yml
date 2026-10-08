@@ -95,22 +95,22 @@ jobs:
           else
             SIGNING=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=)
           fi
-          xcodebuild -project macos/LabelsmithMac.xcodeproj -scheme Labelsmith -configuration Release \
+          xcodebuild -project macos/LabelpeelMac.xcodeproj -scheme Labelpeel -configuration Release \
             -derivedDataPath "$RUNNER_TEMP/dd" \
             MARKETING_VERSION="${{ steps.version.outputs.name }}" CURRENT_PROJECT_VERSION="${{ steps.version.outputs.build }}" \
             ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
             "${SIGNING[@]}" build
-          codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP/dd/Build/Products/Release/Labelsmith.app"
+          codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP/dd/Build/Products/Release/Labelpeel.app"
           # Runs on Apple silicon and Intel Macs.
-          lipo -archs "$RUNNER_TEMP/dd/Build/Products/Release/Labelsmith.app/Contents/MacOS/Labelsmith"
+          lipo -archs "$RUNNER_TEMP/dd/Build/Products/Release/Labelpeel.app/Contents/MacOS/Labelpeel"
 
       - name: Package
         run: |
-          DMG="Labelsmith-${{ steps.version.outputs.name }}.dmg"
+          DMG="Labelpeel-${{ steps.version.outputs.name }}.dmg"
           mkdir -p "$RUNNER_TEMP/dmg"
-          cp -R "$RUNNER_TEMP/dd/Build/Products/Release/Labelsmith.app" "$RUNNER_TEMP/dmg/"
+          cp -R "$RUNNER_TEMP/dd/Build/Products/Release/Labelpeel.app" "$RUNNER_TEMP/dmg/"
           ln -s /Applications "$RUNNER_TEMP/dmg/Applications"
-          hdiutil create -volname Labelsmith -srcfolder "$RUNNER_TEMP/dmg" -ov -format UDZO "$DMG"
+          hdiutil create -volname Labelpeel -srcfolder "$RUNNER_TEMP/dmg" -ov -format UDZO "$DMG"
           if [ "$SIGNED" = 1 ]; then codesign --sign "Developer ID Application" --timestamp "$DMG"; fi
           echo "DMG=$DMG" >> "$GITHUB_ENV"
 
@@ -154,8 +154,8 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: labelsmith-macos
+          name: labelpeel-macos
           path: |
-            Labelsmith-*.dmg
+            Labelpeel-*.dmg
             appcast.xml
           if-no-files-found: error
