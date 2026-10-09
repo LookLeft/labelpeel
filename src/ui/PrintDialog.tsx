@@ -9,8 +9,8 @@ import { enumeratePages } from '../model/pages';
 import { concat } from '../printer/protocol';
 import { download } from '../io/files';
 import { Check, Field, NumberInput, Seg } from './fields';
-import { findTape } from '../model/media';
-import { matchLoadedTape } from './actions';
+import { findTape, isDk } from '../model/media';
+import { dkMismatch, matchLoadedTape, mediaName, reportedMedia } from './actions';
 
 export function PrintDialog() {
   const open = useEditor((s) => s.printOpen);
@@ -44,7 +44,10 @@ export function PrintDialog() {
 
 
   // Tape the printer reports vs the tape the design is for (width codes, mm).
-  const loaded = status?.mediaWidth ?? 0;
+  // QL printers check the media themselves, so any DK difference stops the print.
+  const dk = isDk(doc.media.kind);
+  const wrongDk = dkMismatch(status, doc.media);
+  const loaded = dk ? 0 : status?.mediaWidth ?? 0;
   const designed = findTape(doc.media.kind, doc.media.width).code;
   const loadedMm = loaded === 4 ? 3.5 : loaded;
   // A design for wider tape loses its edges, and the head prints past the tape
@@ -58,9 +61,10 @@ export function PrintDialog() {
   const close = () => !busy && st().set({ printOpen: false });
   const p = doc.print;
   const setPrint = (patch: Partial<typeof p>) => st().update((d) => ({ ...d, print: { ...d.print, ...patch } }));
-  const totalMm = job ? job.bitmaps.reduce((s, b) => s + b.width, 0) / (profile.dpi / 25.4) : 0;
+  // Die-cut labels use their whole length, though only the middle is printed.
+  const totalMm = !job ? 0 : doc.media.kind === 'dkdie' && doc.media.length ? job.bitmaps.length * doc.media.length : job.bitmaps.reduce((s, b) => s + b.width, 0) / (profile.dpi / 25.4);
   const clipped = job ? new Set(job.bitmaps.filter((b) => b.spillDots > 0)).size : 0;
-  const plan = job ? cutPlan(job.bitmaps.length, p, profile.halfCut, settings.minimalProtocol) : null;
+  const plan = job ? cutPlan(job.bitmaps.length, p, profile.halfCut, settings.minimalProtocol && !profile.ql) : null;
 
   const doPrint = async () => {
     if (!job) return;
@@ -79,7 +83,7 @@ export function PrintDialog() {
         <div className="modal-head">
           <h2>Print</h2>
           <span className="hint">
-            {profile.name} · {doc.media.width} mm {doc.media.kind === 'hse' ? 'heat-shrink' : 'tape'}
+            {profile.name} · {mediaName(doc.media)}
           </span>
           <div className="spacer" />
           <button className="btn ghost icon" onClick={close}>
@@ -130,6 +134,19 @@ export function PrintDialog() {
               {transport?.kind === 'serial' && !responded && (
                 <div className="callout warn" style={{ marginTop: 10 }}>
                   The printer hasn't responded since you connected. If it's off, out of range or connected to another device, nothing will print. Check it in the printer panel (Status).
+                </div>
+              )}
+              {wrongDk && (
+                <div className="callout err" style={{ marginTop: 10, flexDirection: 'column' }}>
+                  <div>
+                    The printer has {mediaName(reportedMedia(status!, doc.media))} loaded, but this label is designed for {mediaName(doc.media)}. The printer won't print
+                    until they match.
+                  </div>
+                  <div className="row tight">
+                    <button className="btn sm" onClick={() => matchLoadedTape(status!)}>
+                      Switch design to {mediaName(reportedMedia(status!, doc.media))}
+                    </button>
+                  </div>
                 </div>
               )}
               {tooWide && (
@@ -197,7 +214,7 @@ export function PrintDialog() {
               <Bluetooth size={14} /> Connect printer…
             </button>
           ) : (
-            <button className="btn primary" disabled={!job || busy || (tooWide && !override)} onClick={doPrint}>
+            <button className="btn primary" disabled={!job || busy || wrongDk || (tooWide && !override)} onClick={doPrint}>
               <Printer size={14} /> {busy ? 'Printing…' : `Print ${job?.bitmaps.length ?? ''}`}
             </button>
           )}

@@ -18,12 +18,12 @@ export interface Bitmap {
  * maps to the highest head pin:
  *   pixel = offset + (height - 1 - row)
  *   line[(bytes - 1) - (pixel >> 3)] |= 1 << (pixel & 7)
- * The printable band is centred on the head.
+ * The band is centred on the head unless `offset` (the first pin) is given.
  */
-export function bitmapToRaster(bmp: Bitmap, profile: PrinterProfile): RasterPage {
+export function bitmapToRaster(bmp: Bitmap, profile: PrinterProfile, offset?: number): RasterPage {
   const bytes = lineBytes(profile);
   const height = Math.min(bmp.height, profile.headPins);
-  const offset = Math.floor((profile.headPins - height) / 2);
+  offset = Math.min(offset ?? Math.floor((profile.headPins - height) / 2), profile.headPins - height);
   const lines: Uint8Array[] = [];
   for (let x = 0; x < bmp.width; x++) {
     const line = new Uint8Array(bytes);

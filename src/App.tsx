@@ -15,7 +15,7 @@ import { usePrinter, effectiveProfile } from './printer/service';
 import { openFile, save, insertText } from './ui/actions';
 import { computeLayout } from './render/render';
 import { previewContext } from './model/pages';
-import { printableBand } from './model/media';
+import { isDk, printableBand } from './model/media';
 import type { LabelElement, TextElement } from './model/types';
 
 function useShortcuts() {
@@ -82,7 +82,7 @@ function StatusBar() {
   const silent = usePrinter((s) => !!s.transport && s.transport.kind === 'serial' && !s.responded);
   const profile = effectiveProfile(settings.profileId);
   const length = computeLayout(doc, previewContext(doc, idx, settings.dateFormat)).length;
-  const band = printableBand(doc.media.kind, doc.media.width, profile.dpi, profile.headPins);
+  const band = printableBand(doc.media.kind, doc.media.width, profile.dpi, profile.headPins, doc.media.length);
   return (
     <footer className="statusbar">
       <span>
@@ -92,7 +92,7 @@ function StatusBar() {
         Model <b>{profile.name}</b>
       </span>
       <span>
-        Tape <b>{doc.media.width} mm</b> · print area <b>{band.height.toFixed(1)} mm</b> ({band.dots} dots)
+        {isDk(doc.media.kind) ? 'Labels' : 'Tape'} <b>{doc.media.kind === 'dkdie' ? `${doc.media.width} × ${doc.media.length} mm` : `${doc.media.width} mm`}</b> · print area <b>{band.height.toFixed(1)} mm</b> ({band.dots} dots)
       </span>
       <span>
         Length <b>{length.toFixed(1)} mm</b>

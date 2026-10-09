@@ -227,7 +227,9 @@ export function computeLayout(doc: LabelDoc, pctx: PlaceholderContext): Layout {
     extent = Math.max(extent, (doc.orientation === 'portrait' ? e.y + e.h : e.x + e.w) - inMargin);
   }
   let length = doc.length;
-  if (doc.lengthMode === 'auto') {
+  // Die-cut labels are always their own length.
+  if (doc.media.kind === 'dkdie' && doc.media.length) length = doc.media.length;
+  else if (doc.lengthMode === 'auto') {
     length = Math.max(4, (doc.elements.length ? extent : 20) + doc.marginEnd);
   }
   return { length: Math.round(length * 10) / 10, boxes };
@@ -1013,7 +1015,7 @@ export function renderPrintBitmap(
   const layout = computeLayout(doc, pctx);
   const [W, H] = designSize(doc, layout.length);
   const portrait = doc.orientation === 'portrait';
-  const band = printableBand(doc.media.kind, doc.media.width, dpi, headPins);
+  const band = printableBand(doc.media.kind, doc.media.width, dpi, headPins, doc.media.length);
   const rows = band.dots;
   // Shift the design by under half a dot so the printable band starts exactly
   // on a dot row; otherwise content flush with its edge loses a row.
@@ -1057,6 +1059,20 @@ export function renderPrintBitmap(
   }
   if (opts.cutMark) {
     for (let r = 0; r < rows; r++) if (r % 6 < 3) bits[r * tw + tw - 1] = 1;
+  }
+  // Die-cut labels: the printer prints only the middle of the label, so send
+  // just that. Ink at the ends counts as lost, like ink outside the band.
+  if (band.lengthDots != null && band.lengthDots < tw) {
+    const w = band.lengthDots;
+    const start = Math.round((tw - w) / 2);
+    const crop = (src: Uint8Array, h: number) => {
+      const out = new Uint8Array(w * h);
+      for (let r = 0; r < h; r++) out.set(src.subarray(r * tw + start, r * tw + start + w), r * w);
+      return out;
+    };
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < tw; c++) if ((c < start || c >= start + w) && bits[r * tw + c]) spillDots++;
+    return { width: w, height: rows, bits: crop(bits, rows), lengthMm: layout.length, margin, spill: spill && crop(spill, margin * 2), spillDots };
   }
   return { width: tw, height: rows, bits, lengthMm: layout.length, margin, spill, spillDots };
 }

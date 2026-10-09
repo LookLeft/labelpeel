@@ -28,6 +28,10 @@ export interface PrinterProfile {
   autoCut: boolean;
   halfCut: boolean;
   bluetooth: boolean;
+  /** QL label printer (DK rolls): QL print information, raster lines and cutting. */
+  ql: boolean;
+  /** Not yet tested on a real printer: shown as a warning. */
+  experimental?: string;
   /** Raster printing unsupported over this connection (e.g. P-Lite mode). */
   unsupported?: string;
   notes?: string;
@@ -45,6 +49,24 @@ const base = {
   autoCut: true,
   halfCut: false,
   bluetooth: false,
+  ql: false,
+};
+
+// QL-800 series: 300 dpi, 720-pin head, DK rolls up to 62 mm. Raster
+// commands per Brother's QL-800/810W/820NWB raster command reference.
+const ql = {
+  ...base,
+  dpi: 300,
+  headPins: 720,
+  maxTape: 62,
+  media: ['dk', 'dkdie'] as MediaKind[],
+  p700Init: true,
+  infoCmd: true,
+  packbits: false,
+  ql: true,
+  experimental:
+    "QL support is new and hasn't been tested on a real printer yet. If a print comes out misplaced or doesn't print, please report it with the printer log. " +
+    'Turn Editor Lite off first (hold its button until the light goes out), or the printer shows up as a USB drive instead of a printer.',
 };
 
 export const PROFILES: PrinterProfile[] = [
@@ -107,6 +129,9 @@ export const PROFILES: PrinterProfile[] = [
   },
   { ...base, id: 'pt-9500pc', name: 'PT-9500PC', pids: [0x200f], dpi: 360, headPins: 384, maxTape: 36 },
   { ...base, id: 'pt-9200dx', name: 'PT-9200DX', pids: [0x2001, 0x2002], dpi: 360, headPins: 384, maxTape: 36 },
+  { ...ql, id: 'ql-800', name: 'QL-800', pids: [0x209b] },
+  { ...ql, id: 'ql-810w', name: 'QL-810W', pids: [0x209c] },
+  { ...ql, id: 'ql-820nwb', name: 'QL-820NWB', pids: [0x209d] },
   {
     ...base,
     id: 'pt-p1230pc-plite',

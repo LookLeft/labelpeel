@@ -7,13 +7,14 @@ import {
 } from 'lucide-react';
 import { useEditor } from '../state/store';
 import type {
-  BarcodeElement, GridElement, ImageElement, LabelDoc, LabelElement, ShapeElement, SymbolElement, TextElement, MediaKind,
+  BarcodeElement, GridElement, ImageElement, LabelDoc, LabelElement, ShapeElement, SymbolElement, TextElement,
   TableElement, CellFill, LineStyle,
 } from '../model/types';
 import { tableAreas, mergeCells, splitCell, insertRow, insertCol, deleteRow, deleteCol, type CellArea } from '../model/table';
-import { Check, ColorInput, Field, FontSelect, NumberInput, Select, Seg, TextArea, TextInput } from './fields';
+import { Check, Field, FontSelect, NumberInput, Select, Seg, TextArea, TextInput } from './fields';
 import { labelType, applyLabelType, DB_PRESETS, type ParamDef } from '../model/labelTypes';
-import { sizesFor, TAPE_COLORS } from '../model/media';
+import { isDk } from '../model/media';
+import { MediaPicker } from './MediaPicker';
 import { SYMBOLOGIES, isTwoD } from '../render/barcode';
 import { CUSTOM_SYMBOLS } from '../clipart/custom';
 import { symbolName, symbolSvg } from '../clipart';
@@ -54,7 +55,6 @@ function LabelPanel({ doc }: { doc: LabelDoc }) {
       return def.generate ? useEditorApply(next) : next;
     });
   };
-  const sizes = sizesFor(doc.media.kind).filter((t) => t.width <= profile.maxTape + 0.5);
 
   return (
     <>
@@ -83,48 +83,14 @@ function LabelPanel({ doc }: { doc: LabelDoc }) {
       </div>
 
       <div className="section">
-        <div className="section-title">Tape</div>
-        {profile.media.length > 1 && (
-          <Field>
-            <Seg<MediaKind>
-              value={doc.media.kind}
-              onChange={(kind) => reapply({ media: { ...doc.media, kind, width: sizesFor(kind)[Math.min(3, sizesFor(kind).length - 1)].width } })}
-              options={profile.media.map((m) => ({ value: m, label: m === 'tze' ? 'TZe tape' : m === 'hse' ? 'Heat-shrink' : m === 'fle' ? 'FLe flag' : 'Fabric' }))}
-            />
-          </Field>
-        )}
-        <Field label="Width">
-          <div className="chips">
-            {sizes.map((t) => (
-              <button key={t.width} className={`chip ${doc.media.width === t.width ? 'on' : ''}`} onClick={() => reapply({ media: { ...doc.media, width: t.width } })} title={t.label}>
-                {t.width} mm
-              </button>
-            ))}
-          </div>
-        </Field>
-        <Field label="Colour">
-          <div className="swatches">
-            {TAPE_COLORS.map((c) => (
-              <button
-                key={c.name}
-                title={c.name}
-                className={`swatch ${doc.media.tapeColor === c.tape && doc.media.inkColor === c.ink ? 'on' : ''}`}
-                style={{ background: c.tape, color: c.ink }}
-                onClick={() => set({ media: { ...doc.media, tapeColor: c.tape, inkColor: c.ink } })}
-              >
-                A
-              </button>
-            ))}
-          </div>
-        </Field>
-        <div className="row">
-          <Field label="Tape">
-            <ColorInput value={doc.media.tapeColor} onChange={(v) => set({ media: { ...doc.media, tapeColor: v } }, 'tapeColor')} />
-          </Field>
-          <Field label="Ink">
-            <ColorInput value={doc.media.inkColor} onChange={(v) => set({ media: { ...doc.media, inkColor: v } }, 'inkColor')} />
-          </Field>
-        </div>
+        <div className="section-title">{isDk(doc.media.kind) ? 'Labels' : 'Tape'}</div>
+        <MediaPicker
+          media={doc.media}
+          profile={profile}
+          customColors
+          onMedia={(media) => reapply({ media })}
+          onColor={(media, key) => set({ media }, key)}
+        />
       </div>
 
       <div className="section">
@@ -132,12 +98,18 @@ function LabelPanel({ doc }: { doc: LabelDoc }) {
         <Field label="Orientation">
           <Seg value={doc.orientation} onChange={(v) => reapply({ orientation: v })} options={[{ value: 'landscape', label: 'Horizontal' }, { value: 'portrait', label: 'Vertical' }]} />
         </Field>
+        {doc.media.kind === 'dkdie' ? (
+          <Field label="Length">
+            <div className="hint">{doc.media.length} mm, the length of each label</div>
+          </Field>
+        ) : (
         <Field label="Length">
           <div className="row">
             <Seg value={doc.lengthMode} onChange={(v) => set({ lengthMode: v, length: v === 'fixed' ? Math.round(computeLayout(doc, previewContext(doc, useEditor.getState().previewIndex, useEditor.getState().settings.dateFormat)).length) : doc.length })} options={[{ value: 'auto', label: 'Auto' }, { value: 'fixed', label: 'Fixed' }]} />
             {doc.lengthMode === 'fixed' && <NumberInput value={doc.length} onChange={(v) => set({ length: v }, 'length')} unit="mm" min={4} max={1000} step={1} />}
           </div>
         </Field>
+        )}
         <div className="grid2">
           <Field label="Start margin">
             <NumberInput value={doc.marginStart} onChange={(v) => set({ marginStart: v }, 'mstart')} unit="mm" min={0} max={50} step={0.5} />

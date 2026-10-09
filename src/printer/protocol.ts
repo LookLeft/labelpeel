@@ -21,6 +21,14 @@
 // For the D460BT family (PT-E560BT, E510, E310BT, D610BT, D460BT) the
 // known-good stream sends "ESC i d 01 00" + "M 00" right after ESC i z, with
 // n9 = 0x02. The "minimal" mode below reproduces that byte stream exactly.
+//
+// QL printers (profile.ql) use the same family with a few differences, per
+// Brother's QL-800 series raster command reference:
+//   400 × 0x00 invalidate; ESC i z with valid flags, media type (0x0A
+//   continuous, 0x0B die-cut), width and length, n9 0 = first page, 1 = other;
+//   ESC i K bit3 = cut at end; feed margin 35 dots on continuous rolls, 0 on
+//   die-cut; no compression; raster lines are "g 00 n data" with no blank-line
+//   shortcut.
 
 import type { PrinterProfile } from './profiles';
 import { lineBytes } from './profiles';
@@ -35,6 +43,8 @@ export interface JobOptions {
   mediaWidth: number;
   /** Media type for ESC i z n2 (0 = not specified). */
   mediaType?: number;
+  /** QL die-cut labels: label length in mm for ESC i z n4. */
+  mediaLength?: number;
   autoCut: boolean;
   cutEvery: number;
   halfCut: boolean;
@@ -49,7 +59,7 @@ export interface JobOptions {
 
 export const ESC = 0x1b;
 
-export const cmdInvalidate = () => new Uint8Array(100);
+export const cmdInvalidate = (n = 100) => new Uint8Array(n);
 export const cmdInit = () => new Uint8Array([ESC, 0x40]);
 export const cmdStatusRequest = () => new Uint8Array([ESC, 0x69, 0x53]);
 export const cmdRasterMode = (p: PrinterProfile) =>
@@ -72,6 +82,29 @@ export function cmdPrintInfo(widthMm: number, rasterLines: number, n9: number, m
     0x00,
   ]);
 }
+
+/** QL print information: media type, width and length are checked against the loaded roll. */
+export function cmdQlPrintInfo(mediaType: number, widthMm: number, lengthMm: number, rasterLines: number, firstPage: boolean): Uint8Array {
+  // n1: 0x02 type, 0x04 width, 0x08 length valid; 0x40 quality priority; 0x80 printer recovery on.
+  const flags = 0x80 | 0x40 | 0x02 | 0x04 | (lengthMm ? 0x08 : 0);
+  return new Uint8Array([
+    ESC, 0x69, 0x7a,
+    flags,
+    mediaType & 0xff,
+    widthMm & 0xff,
+    lengthMm & 0xff,
+    rasterLines & 0xff,
+    (rasterLines >> 8) & 0xff,
+    (rasterLines >> 16) & 0xff,
+    (rasterLines >> 24) & 0xff,
+    firstPage ? 0 : 1,
+    0x00,
+  ]);
+}
+export const QL_CONTINUOUS = 0x0a;
+export const QL_DIE_CUT = 0x0b;
+/** QL raster line: "g", 0x00, byte count, then the uncompressed line. */
+export const cmdQlRasterLine = (data: Uint8Array) => concat([new Uint8Array([0x67, 0x00, data.length]), data]);
 
 export const cmdVariousMode = (autoCut: boolean, mirror: boolean) =>
   new Uint8Array([ESC, 0x69, 0x4d, (autoCut ? 0x40 : 0) | (mirror ? 0x80 : 0)]);
@@ -155,6 +188,7 @@ export function concat(parts: Uint8Array[]): Uint8Array {
  * chunks in send order so transports can pace the transfer.
  */
 export function buildJob(pages: RasterPage[], profile: PrinterProfile, opts: JobOptions): Uint8Array[] {
+  if (profile.ql) return buildQlJob(pages, profile, opts);
   const chunks: Uint8Array[] = [];
   chunks.push(concat([cmdInvalidate(), cmdInit()]));
   chunks.push(cmdRasterMode(profile));
@@ -213,11 +247,43 @@ export function buildJob(pages: RasterPage[], profile: PrinterProfile, opts: Job
   return chunks;
 }
 
+function buildQlJob(pages: RasterPage[], profile: PrinterProfile, opts: JobOptions): Uint8Array[] {
+  const chunks: Uint8Array[] = [concat([cmdInvalidate(400), cmdInit()]), cmdRasterMode(profile)];
+  const dieCut = opts.mediaType === QL_DIE_CUT;
+  const bytesPerLine = lineBytes(profile);
+  pages.forEach((page, idx) => {
+    const last = idx === pages.length - 1;
+    const header = [cmdQlPrintInfo(opts.mediaType ?? QL_CONTINUOUS, opts.mediaWidth, dieCut ? opts.mediaLength ?? 0 : 0, page.lines.length, idx === 0)];
+    header.push(cmdVariousMode(opts.autoCut && !opts.noCut, false));
+    if (opts.autoCut && !opts.noCut) header.push(cmdCutEvery(opts.cutEvery));
+    // ESC i K bit3: cut after the last label.
+    header.push(new Uint8Array([ESC, 0x69, 0x4b, !opts.chain && !opts.noCut ? 0x08 : 0]));
+    header.push(cmdMargin(dieCut ? 0 : 35));
+    chunks.push(concat(header));
+    let buf: Uint8Array[] = [];
+    let size = 0;
+    for (const line of page.lines) {
+      if (line.length !== bytesPerLine) throw new Error(`Raster line is ${line.length} bytes, expected ${bytesPerLine}`);
+      const cmd = cmdQlRasterLine(line);
+      buf.push(cmd);
+      size += cmd.length;
+      if (size >= 4096) {
+        chunks.push(concat(buf));
+        buf = [];
+        size = 0;
+      }
+    }
+    if (buf.length) chunks.push(concat(buf));
+    chunks.push(last ? cmdPrintFeed() : cmdPrint());
+  });
+  return chunks;
+}
+
 /** A job that only feeds and cuts the tape. */
-export function buildFeedCutJob(profile: PrinterProfile, mediaWidth: number): Uint8Array[] {
+export function buildFeedCutJob(profile: PrinterProfile, media: Pick<JobOptions, 'mediaWidth' | 'mediaType' | 'mediaLength'>, lines = 1): Uint8Array[] {
   const blank = new Uint8Array(lineBytes(profile));
-  return buildJob([{ lines: [blank] }], profile, {
-    mediaWidth,
+  return buildJob([{ lines: Array(lines).fill(blank) }], profile, {
+    ...media,
     autoCut: true,
     cutEvery: 1,
     halfCut: false,

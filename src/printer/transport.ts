@@ -41,6 +41,11 @@ export async function connectUsb(device?: USBDevice): Promise<Transport> {
     ifaces.find((i) => i.alternates.some((a) => a.interfaceClass === 7)) ??
     ifaces.find((i) => i.alternates.some((a) => a.endpoints.some((e) => e.type === 'bulk' && e.direction === 'out')));
   if (!pick) throw new Error('No printer interface found on this USB device.');
+  // A QL printer in Editor Lite mode is only a USB drive (mass storage, class 8).
+  if (!pick.alternates.some((a) => a.interfaceClass === 7) && pick.alternates.some((a) => a.interfaceClass === 8)) {
+    await dev.close().catch(() => {});
+    throw new Error('The printer is in Editor Lite mode, so it shows up as a USB drive. Hold the Editor Lite button until its light goes out, then connect again.');
+  }
   try {
     await dev.claimInterface(pick.interfaceNumber);
   } catch (e) {

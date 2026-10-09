@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import { findTape, MM_PER_INCH } from '../model/media';
+import { findTape, headOffset, isDk, MM_PER_INCH, printableBand } from '../model/media';
 import { enumeratePages } from '../model/pages';
-import type { LabelDoc } from '../model/types';
+import type { LabelDoc, Media } from '../model/types';
 import { preloadDoc } from '../render/assets';
 import { renderPrintBitmap, type PrintBitmap } from '../render/render';
-import { buildFeedCutJob, buildJob, cmdInit, cmdInvalidate, cmdStatusRequest, concat, hex, type JobOptions } from './protocol';
+import { buildFeedCutJob, buildJob, cmdInit, cmdInvalidate, cmdStatusRequest, concat, hex, QL_CONTINUOUS, QL_DIE_CUT, type JobOptions } from './protocol';
 import { profileById, profileByPid, type PrinterProfile } from './profiles';
 import { bitmapToRaster } from './raster';
 import { findAllStatus, findStatus, type PrinterStatus } from './status';
@@ -157,8 +157,15 @@ export async function prepareJob(
   range?: { from: number; to: number },
   labels?: LabelDoc[],
 ): Promise<PreparedJob> {
-  const tape = findTape(doc.media.kind, doc.media.width);
-  const sameTape = (d: LabelDoc) => d.media.kind === doc.media.kind && findTape(d.media.kind, d.media.width).code === tape.code;
+  if (isDk(doc.media.kind) !== profile.ql) {
+    throw new Error(
+      isDk(doc.media.kind)
+        ? `This label is for DK labels, which the ${profile.name} can't print. Choose your printer model, or change the label's tape on the right.`
+        : `This label is for P-touch tape, but the ${profile.name} uses DK labels. Choose DK labels on the right first.`,
+    );
+  }
+  const tape = findTape(doc.media.kind, doc.media.width, doc.media.length);
+  const sameTape = (d: LabelDoc) => d.media.kind === doc.media.kind && findTape(d.media.kind, d.media.width, d.media.length) === tape;
   const docs = labels ? labels.filter(sameTape) : [doc];
   const skipped = labels ? labels.filter((d) => !sameTape(d)).map((d) => d.name || 'Untitled label') : [];
   const dpm = profile.dpi / MM_PER_INCH;
@@ -174,8 +181,9 @@ export async function prepareJob(
       for (const section of splitBitmap(bmp, d, dpm)) for (let c = 0; c < Math.max(1, d.print.copies); c++) bitmaps.push(section);
     }
   }
+  if (profile.ql) minimal = false; // the minimal command set is for P-touch printers
   const options: JobOptions = {
-    mediaWidth: tape.code,
+    ...jobMedia(doc.media),
     autoCut: doc.print.cut === 'each',
     cutEvery: doc.print.cutEvery,
     halfCut: doc.print.halfCut,
@@ -184,7 +192,8 @@ export async function prepareJob(
     noCut: doc.print.cut === 'none' && !doc.print.chain,
     minimal,
   };
-  const chunks = buildJob(bitmaps.map((b) => bitmapToRaster(b, profile)), profile, options);
+  const offset = (b: PrintBitmap) => headOffset(doc.media.kind, doc.media.width, profile.headPins, b.height, doc.media.length);
+  const chunks = buildJob(bitmaps.map((b) => bitmapToRaster(b, profile, offset(b))), profile, options);
   return { bitmaps, profile, options, chunks, bytes: chunks.reduce((s, c) => s + c.length, 0), skipped };
 }
 
@@ -251,10 +260,20 @@ export function notRespondingMessage() {
   );
 }
 
-export async function feedAndCut(profile: PrinterProfile, mediaWidth: number) {
+/** Media fields for the print information command. */
+function jobMedia(media: Media): Pick<JobOptions, 'mediaWidth' | 'mediaType' | 'mediaLength'> {
+  const tape = findTape(media.kind, media.width, media.length);
+  if (media.kind === 'dkdie') return { mediaWidth: tape.width, mediaType: QL_DIE_CUT, mediaLength: tape.length };
+  if (media.kind === 'dk') return { mediaWidth: tape.width, mediaType: QL_CONTINUOUS };
+  return { mediaWidth: tape.code };
+}
+
+export async function feedAndCut(profile: PrinterProfile, media: Media) {
   const t = usePrinter.getState().transport;
   if (!t) throw new Error('Connect a printer first.');
-  for (const c of buildFeedCutJob(profile, mediaWidth)) await send(t, c);
+  // A die-cut roll feeds a whole (blank) label.
+  const blank = media.kind === 'dkdie' ? printableBand(media.kind, media.width, profile.dpi, profile.headPins, media.length).lengthDots ?? 1 : 1;
+  for (const c of buildFeedCutJob(profile, jobMedia(media), blank)) await send(t, c);
 }
 
 export function effectiveProfile(settingsId: string): PrinterProfile {

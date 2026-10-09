@@ -126,7 +126,7 @@ public class PrinterBridge {
             }
         }
         if (device == null) {
-            reply(id, null, "No Brother printer found on USB. Connect it with a USB cable (a USB-C OTG adapter on most phones) and switch it on.");
+            reply(id, null, "No Brother printer found on USB. Connect it with a USB cable (a USB-C OTG adapter on most phones) and switch it on. On a QL printer, turn Editor Lite off first (hold its button until the light goes out).");
             return;
         }
         if (manager.hasPermission(device)) {

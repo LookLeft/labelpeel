@@ -5,8 +5,8 @@ import { PROFILES } from '../printer/profiles';
 import { isMac, supportsSerial, supportsUsb } from '../printer/transport';
 import { nativePlatform, nativeSupportsUsb, supportsNative } from '../printer/native';
 import { Check, Field, Select } from './fields';
-import { findTape } from '../model/media';
-import { matchLoadedTape } from './actions';
+import { findTape, isDk } from '../model/media';
+import { dkMismatch, matchLoadedTape, mediaName, reportedMedia } from './actions';
 import { ANDROID_DOWNLOAD, appForThisDevice, MAC_DOWNLOAD } from './apps';
 
 export function PrinterPanel() {
@@ -30,7 +30,9 @@ export function PrinterPanel() {
   };
 
   const useTape = () => status && matchLoadedTape(status);
-  const mismatch = status && status.mediaWidth && Math.abs(findTape(doc.media.kind, doc.media.width).code - status.mediaWidth) > 0.5;
+  const mismatch = isDk(doc.media.kind)
+    ? dkMismatch(status, doc.media)
+    : !!status?.mediaWidth && Math.abs(findTape(doc.media.kind, doc.media.width).code - status.mediaWidth) > 0.5;
 
   return (
     <div className="modal-back" onPointerDown={(e) => e.target === e.currentTarget && close()}>
@@ -50,9 +52,10 @@ export function PrinterPanel() {
                 st().setSettings({ profileId });
                 usePrinter.setState({ detectedProfile: null });
               }}
-              options={PROFILES.map((p) => ({ value: p.id, label: `${p.name}${p.bluetooth ? ' (Bluetooth)' : ''}` }))}
+              options={PROFILES.map((p) => ({ value: p.id, label: `${p.name}${p.bluetooth ? ' (Bluetooth)' : ''}${p.experimental ? ' (experimental)' : ''}` }))}
             />
           </Field>
+          {profile.experimental && <div className="callout warn" style={{ marginBottom: 12 }}>{profile.experimental}</div>}
           {profile.unsupported && <div className="callout warn" style={{ marginBottom: 12 }}>{profile.unsupported}</div>}
 
           {!transport ? (
@@ -125,7 +128,8 @@ export function PrinterPanel() {
                     <div className="hint">Port open, but the printer hasn't responded. Check it's on and not connected to another device, then press Status.</div>
                   ) : status ? (
                     <div>
-                      {status.mediaWidth} mm {status.mediaTypeName} · {status.tapeColorName} / {status.textColorName}
+                      {status.mediaWidth} mm{status.mediaLength ? ` × ${status.mediaLength} mm` : ''} {status.mediaTypeName}
+                      {status.tapeColor > 0 && ` · ${status.tapeColorName} / ${status.textColorName}`}
                       {status.errors.length > 0 && <div style={{ color: 'var(--danger)' }}>{status.errors.join(', ')}</div>}
                     </div>
                   ) : (
@@ -136,9 +140,9 @@ export function PrinterPanel() {
               {mismatch && (
                 <div className="callout warn" style={{ marginBottom: 12 }}>
                   <div style={{ flex: 1 }}>
-                    The printer has {status!.mediaWidth} mm tape but the label is designed for {doc.media.width} mm.
+                    The printer has {mediaName(reportedMedia(status!, doc.media))} but the label is designed for {mediaName(doc.media)}.
                     <button className="btn sm" style={{ marginLeft: 8 }} onClick={useTape}>
-                      Use {status!.mediaWidth} mm
+                      Use {mediaName(reportedMedia(status!, doc.media))}
                     </button>
                   </div>
                 </div>
@@ -147,7 +151,7 @@ export function PrinterPanel() {
                 <button className="btn" disabled={busy} onClick={() => run(refreshStatus)}>
                   <RefreshCw size={14} /> Status
                 </button>
-                <button className="btn" disabled={busy} onClick={() => run(() => feedAndCut(profile, findTape(doc.media.kind, doc.media.width).code))}>
+                <button className="btn" disabled={busy} onClick={() => run(() => feedAndCut(profile, doc.media))}>
                   <Scissors size={14} /> Feed &amp; cut
                 </button>
                 {status && (

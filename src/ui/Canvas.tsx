@@ -264,6 +264,9 @@ export function EditorCanvas() {
     // Draws dot rows (tape orientation) whose first row sits `fromMm` across the tape.
     const pr = printableRect(doc, layout.length, profile.dpi, profile.headPins);
     const dotPx = zoom / (profile.dpi / 25.4);
+    // Along the tape the dots cover the printable length: the whole label,
+    // except die-cut labels, which lose a strip at each end.
+    const along = portrait ? { start: pr.y, len: pr.h } : { start: pr.x, len: pr.w };
     const drawDots = (width: number, height: number, bits: Uint8Array, rgb: [number, number, number], fromMm: number) => {
       const img = ctx.createImageData(width, height);
       for (let i = 0; i < bits.length; i++) if (bits[i]) img.data.set([rgb[0], rgb[1], rgb[2], 255], i * 4);
@@ -274,12 +277,12 @@ export function EditorCanvas() {
       ctx.save();
       ctx.imageSmoothingEnabled = false;
       if (!portrait) {
-        ctx.drawImage(tmp, panX, panY + fromMm * zoom, lw, height * dotPx);
+        ctx.drawImage(tmp, panX + along.start * zoom, panY + fromMm * zoom, along.len * zoom, height * dotPx);
       } else {
         // Undo the 90° rotation used for printing.
-        ctx.translate(panX + fromMm * zoom + height * dotPx, panY);
+        ctx.translate(panX + fromMm * zoom + height * dotPx, panY + along.start * zoom);
         ctx.rotate(Math.PI / 2);
-        ctx.drawImage(tmp, 0, 0, lh, height * dotPx);
+        ctx.drawImage(tmp, 0, 0, along.len * zoom, height * dotPx);
       }
       ctx.restore();
     };
@@ -316,6 +319,17 @@ export function EditorCanvas() {
     } else {
       ctx.fillRect(panX, panY, pr.x * zoom, lh);
       ctx.fillRect(panX + (pr.x + pr.w) * zoom, panY, lw - (pr.x + pr.w) * zoom, lh);
+    }
+    if (along.start > 0) {
+      // Die-cut label ends.
+      const a = along.start * zoom;
+      if (!portrait) {
+        ctx.fillRect(panX, panY + pr.y * zoom, a, pr.h * zoom);
+        ctx.fillRect(panX + lw - a, panY + pr.y * zoom, a, pr.h * zoom);
+      } else {
+        ctx.fillRect(panX + pr.x * zoom, panY, pr.w * zoom, a);
+        ctx.fillRect(panX + pr.x * zoom, panY + lh - a, pr.w * zoom, a);
+      }
     }
     ctx.restore();
     // Ink the print head can't reach, in red.

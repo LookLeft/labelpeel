@@ -28,6 +28,8 @@ export interface LabelTypeDef {
   description: string;
   icon: string; // lucide-react icon name
   media?: Partial<Media>;
+  /** Needs P-touch media (self-laminating tape, heat-shrink tube), so it's hidden for QL printers. */
+  ptouchOnly?: boolean;
   params: ParamDef[];
   defaults: Record<string, unknown>;
   generate?: (doc: LabelDoc, p: Record<string, unknown>) => Partial<LabelDoc> & { elements: LabelElement[] };
@@ -116,6 +118,7 @@ export const LABEL_TYPES: LabelTypeDef[] = [
     name: 'Self-laminating',
     description: 'Wire markers on TZe-SL tape: print on the white band, the clear part wraps over it.',
     icon: 'Layers',
+    ptouchOnly: true,
     media: { kind: 'tze', width: 24, tapeColor: '#ffffff', inkColor: '#111111' },
     params: [
       { key: 'text', label: 'Text', type: 'textarea' },
@@ -248,6 +251,7 @@ export const LABEL_TYPES: LabelTypeDef[] = [
     name: 'Heat-shrink tube',
     description: 'HSe heat-shrink tube markers, repeated along the sleeve.',
     icon: 'Flame',
+    ptouchOnly: true,
     media: { kind: 'hse', width: 11.7 },
     params: [
       { key: 'text', label: 'Text', type: 'text' },

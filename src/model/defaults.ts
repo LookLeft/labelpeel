@@ -58,10 +58,12 @@ export function designSize(doc: LabelDoc, length = doc.length): [number, number]
 
 /** The printable region in design space. */
 export function printableRect(doc: LabelDoc, length = doc.length, dpi?: number, headPins?: number) {
-  const band = printableBand(doc.media.kind, doc.media.width, dpi, headPins);
+  const band = printableBand(doc.media.kind, doc.media.width, dpi, headPins, doc.media.length);
+  // Die-cut labels also lose a strip at each end.
+  const e = band.ends;
   return doc.orientation === 'portrait'
-    ? { x: band.top, y: 0, w: band.height, h: length }
-    : { x: 0, y: band.top, w: length, h: band.height };
+    ? { x: band.top, y: e, w: band.height, h: length - 2 * e }
+    : { x: e, y: band.top, w: length - 2 * e, h: band.height };
 }
 
 export const FRAME_STYLES: { value: FrameStyle; label: string }[] = [

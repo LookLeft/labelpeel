@@ -2,7 +2,7 @@
 
 # Labelpeel
 
-A label designer for Brother P-touch printers that prints directly over Bluetooth or USB, in the browser or as an app for Mac and Android. It was built first for the **PT-E560BT** and has profiles for the rest of the PT range.
+A label designer for Brother P-touch printers that prints directly over Bluetooth or USB, in the browser or as an app for Mac and Android. It was built first for the **PT-E560BT** and has profiles for the rest of the PT range, plus [experimental support](#ql-label-printers-experimental) for the QL-800 series.
 
 ![The Labelpeel editor with a yellow "Warning – dual supply" label on 24 mm tape, templates on the left and tape settings on the right](screenshots/label-demo.png)
 
@@ -81,6 +81,17 @@ A serial port can open with no printer behind it (macOS keeps a paired printer's
 If labels don't print, turn on **Printer → Advanced → Minimal command set**. This sends exactly the byte sequence [ptouch-print](https://git.familie-radermacher.ch/linux/ptouch-print.git) uses, which has been verified on the PT-E560BT. In that mode the printer uses its own cut defaults.
 
 The cut, half-cut and chain commands follow Brother's raster command reference but haven't been tested on hardware yet.
+
+### QL label printers (experimental)
+
+The **QL-800**, **QL-810W** and **QL-820NWB** print on Brother DK rolls over USB, using the same command family as the P-touch printers. Choose your model in **Connect printer** (USB detects it), then pick **DK roll** (continuous, 12–62 mm) or **DK labels** (die-cut sizes such as 29 × 90 mm and 62 × 100 mm) for the label. Die-cut labels have a fixed length, and the editor shades the strip at each end that the printer can't reach.
+
+- Turn **Editor Lite** off first: hold its button until the light goes out. Otherwise the printer shows up as a USB drive.
+- Printing is black only; red and black on DK-22251 isn't supported yet.
+- The printer checks the loaded roll against the label and won't print if they differ, so Labelpeel offers to switch the design to the loaded roll.
+- Self-laminating and heat-shrink label types are hidden, since they need P-touch media. `.lbx` export is for P-touch labels only.
+
+This is written from Brother's QL raster command reference but **hasn't been tested on a real QL printer yet**. If a print is misplaced or nothing prints, please open an issue with the printer log from **Connect printer**.
 
 ## Where your labels are stored
 

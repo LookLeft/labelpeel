@@ -2,11 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { X, ArrowLeft, FolderOpen, FileUp } from 'lucide-react';
 import { useEditor } from '../state/store';
 import { LABEL_TYPES, labelType, applyLabelType, DB_PRESETS } from '../model/labelTypes';
-import { sizesFor, TAPE_COLORS } from '../model/media';
-import type { Media, MediaKind } from '../model/types';
+import { fitMedia, isDk, mediaOfKind } from '../model/media';
+import type { Media } from '../model/types';
+import { MediaPicker } from './MediaPicker';
 import { newDoc, makeText } from '../model/defaults';
 import { ParamsForm } from './Inspector';
-import { Field, Seg } from './fields';
 import { TypeIcon } from './TypeIcon';
 import { importLbxFile, loadDoc, openFile, thumbnail } from './actions';
 import { effectiveProfile } from '../printer/service';
@@ -21,15 +21,21 @@ export function Wizard() {
   const profile = effectiveProfile(settings.profileId);
 
   useEffect(() => {
-    if (open) setTypeId(null);
+    if (!open) return;
+    setTypeId(null);
+    // Start from media the selected printer takes: a 62 mm roll on a QL printer.
+    setMedia((m) => (profile.media.includes(m.kind) ? m : profile.ql ? mediaOfKind(m, 'dk') : fitMedia(m, profile.media, profile.maxTape)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+  const types = LABEL_TYPES.filter((t) => !(profile.ql && t.ptouchOnly));
 
   const def = typeId ? labelType(typeId) : null;
   const choose = (id: string) => {
     const d = labelType(id);
     setTypeId(id);
     setParams({ ...d.defaults });
-    setMedia((m) => ({ ...m, ...d.media, tapeColor: d.media?.tapeColor ?? '#ffffff', inkColor: d.media?.inkColor ?? '#111111' }));
+    // The type's suggested tape, or the nearest the printer takes (DK on a QL printer).
+    setMedia((m) => fitMedia({ ...m, ...d.media, tapeColor: d.media?.tapeColor ?? '#ffffff', inkColor: d.media?.inkColor ?? '#111111' }, profile.media, profile.maxTape));
   };
 
   const preview = useMemo(() => {
@@ -59,7 +65,6 @@ export function Wizard() {
     loadDoc({ ...preview, name: def?.id === 'general' ? 'Untitled label' : def!.name });
     close();
   };
-  const sizes = sizesFor(media.kind).filter((t) => t.width <= profile.maxTape + 0.5);
 
   return (
     <div className="modal-back" onPointerDown={(e) => e.target === e.currentTarget && close()}>
@@ -80,7 +85,7 @@ export function Wizard() {
           {!def ? (
             <>
               <div className="type-grid">
-                {LABEL_TYPES.map((t) => (
+                {types.map((t) => (
                   <button key={t.id} className="type-card" onClick={() => choose(t.id)}>
                     <div className="ic">
                       <TypeIcon name={t.icon} />
@@ -105,40 +110,8 @@ export function Wizard() {
           ) : (
             <div className="wizard-split">
               <div>
-                <div className="section-title">Tape</div>
-                {profile.media.length > 1 && (
-                  <Field>
-                    <Seg<MediaKind>
-                      value={media.kind}
-                      onChange={(kind) => setMedia({ ...media, kind, width: sizesFor(kind)[Math.min(3, sizesFor(kind).length - 1)].width })}
-                      options={profile.media.map((m) => ({ value: m, label: m === 'tze' ? 'TZe tape' : m === 'hse' ? 'Heat-shrink' : 'FLe flag' }))}
-                    />
-                  </Field>
-                )}
-                <Field label="Width">
-                  <div className="chips">
-                    {sizes.map((t) => (
-                      <button key={t.width} className={`chip ${media.width === t.width ? 'on' : ''}`} onClick={() => setMedia({ ...media, width: t.width })}>
-                        {t.width} mm
-                      </button>
-                    ))}
-                  </div>
-                </Field>
-                <Field label="Colour">
-                  <div className="swatches">
-                    {TAPE_COLORS.map((c) => (
-                      <button
-                        key={c.name}
-                        title={c.name}
-                        className={`swatch ${media.tapeColor === c.tape && media.inkColor === c.ink ? 'on' : ''}`}
-                        style={{ background: c.tape, color: c.ink }}
-                        onClick={() => setMedia({ ...media, tapeColor: c.tape, inkColor: c.ink })}
-                      >
-                        A
-                      </button>
-                    ))}
-                  </div>
-                </Field>
+                <div className="section-title">{isDk(media.kind) ? 'Labels' : 'Tape'}</div>
+                <MediaPicker media={media} profile={profile} onMedia={setMedia} onColor={setMedia} />
                 {def.params.length > 0 && (
                   <>
                     <div className="section-title" style={{ marginTop: 16 }}>Settings</div>

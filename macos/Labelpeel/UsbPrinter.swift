@@ -37,7 +37,7 @@ final class UsbPrinter {
             interfaceProtocol: nil, speed: nil, productIDArray: nil).takeRetainedValue()
         let service = IOServiceGetMatchingService(kIOMainPortDefault, matching)
         guard service != IO_OBJECT_NULL else {
-            throw BridgeError("No Brother printer found on USB. Connect it with a USB cable and switch it on, then try again.")
+            throw BridgeError("No Brother printer found on USB. Connect it with a USB cable and switch it on, then try again. On a QL printer, turn Editor Lite off first (hold its button until the light goes out).")
         }
         defer { IOObjectRelease(service) }
 

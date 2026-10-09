@@ -54,3 +54,6 @@ targets:
         UISupportedExternalAccessoryProtocols:
           - com.brother.ptcbp
         NSBluetoothAlwaysUsageDescription: Labelpeel connects to your label printer over Bluetooth to print your designs.
+        # Only standard HTTPS, so no export compliance documents; saves
+        # answering the question for every TestFlight upload.
+        ITSAppUsesNonExemptEncryption: false

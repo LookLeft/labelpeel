@@ -1,7 +1,8 @@
 import { makeBarcode, makeImage, makeShape, makeSymbol, makeTable, makeText, newDoc, printableRect, uid } from '../model/defaults';
 import { applyLabelType, labelType, layoutPostPass } from '../model/labelTypes';
 import { previewContext } from '../model/pages';
-import type { LabelDoc, LabelElement, ShapeKind } from '../model/types';
+import type { LabelDoc, LabelElement, Media, ShapeKind } from '../model/types';
+import { findTape, isDk } from '../model/media';
 import { download, libraryPut, openDocFile, parseTable, pickFile, saveDoc } from '../io/files';
 import { exportLbx, importLbx } from '../io/lbx';
 import { preloadDoc } from '../render/assets';
@@ -63,6 +64,7 @@ async function importLbxBuffer(buf: ArrayBuffer, name: string) {
 export async function exportLbxFile() {
   const s = S();
   try {
+    if (isDk(s.doc.media.kind)) throw new Error('.lbx export is for P-touch tape labels; DK labels for QL printers aren\'t supported yet.');
     await preloadDoc(s.doc);
     const { data, warnings } = await exportLbx(s.doc, s.settings.dateFormat);
     download(`${(s.doc.name || 'label').replace(/[\\/:*?"<>|]+/g, '-')}.lbx`, data, 'application/zip');
@@ -239,16 +241,39 @@ export async function loadDataFile(file?: File | null) {
 export function matchLoadedTape(status: PrinterStatus) {
   const s = useEditor.getState();
   s.update((d) => {
-    const next: LabelDoc = {
-      ...d,
-      media: {
-        ...d.media,
-        kind: status.mediaType === 0x11 || status.mediaType === 0x17 ? 'hse' : d.media.kind === 'hse' ? 'tze' : d.media.kind,
-        width: status.mediaWidth === 4 ? 3.5 : status.mediaWidth,
-        tapeColor: TAPE_RGB[status.tapeColor] ?? d.media.tapeColor,
-        inkColor: TEXT_RGB[status.textColor] ?? d.media.inkColor,
-      },
-    };
+    const next: LabelDoc = { ...d, media: reportedMedia(status, d.media) };
     return labelType(next.labelType).generate ? applyLabelType(next, next.labelType, next.typeParams) : next;
   });
+}
+
+/** The media the printer reports, as design media (keeping what it doesn't report). */
+export function reportedMedia(status: PrinterStatus, current: Media): Media {
+  const paper = { tapeColor: '#ffffff', inkColor: '#111111' };
+  if (status.mediaType === 0x0a) return { ...current, ...paper, kind: 'dk', width: status.mediaWidth, length: undefined };
+  if (status.mediaType === 0x0b) {
+    const length = status.mediaLength || undefined;
+    return { ...current, ...paper, kind: 'dkdie', width: status.mediaWidth, length: findTape('dkdie', status.mediaWidth, length).length ?? length };
+  }
+  return {
+    ...current,
+    kind: status.mediaType === 0x11 || status.mediaType === 0x17 ? 'hse' : isDk(current.kind) || current.kind === 'hse' ? 'tze' : current.kind,
+    width: status.mediaWidth === 4 ? 3.5 : status.mediaWidth,
+    length: undefined,
+    tapeColor: TAPE_RGB[status.tapeColor] ?? current.tapeColor,
+    inkColor: TEXT_RGB[status.textColor] ?? current.inkColor,
+  };
+}
+
+/** Whether the label is designed for different DK media than the QL printer has loaded. */
+export function dkMismatch(status: PrinterStatus | null, media: Media): boolean {
+  if (!status?.mediaWidth || !isDk(media.kind)) return false;
+  const loaded = reportedMedia(status, media);
+  return loaded.kind !== media.kind || loaded.width !== media.width || (media.kind === 'dkdie' && !!loaded.length && loaded.length !== media.length);
+}
+
+/** Short name for some media, e.g. "62 mm DK roll" or "29 × 90 mm DK labels". */
+export function mediaName(media: Media): string {
+  if (media.kind === 'dkdie') return `${findTape('dkdie', media.width, media.length).label.replace(/ \(.*\)$/, '')} DK labels`;
+  if (media.kind === 'dk') return `${media.width} mm DK roll`;
+  return `${media.width} mm ${media.kind === 'hse' ? 'heat-shrink' : 'tape'}`;
 }

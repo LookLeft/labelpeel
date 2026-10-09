@@ -5,6 +5,8 @@ export interface PrinterStatus {
   battery: number;
   errors: string[];
   mediaWidth: number;
+  /** QL die-cut labels: label length in mm (0 for continuous media). */
+  mediaLength: number;
   mediaType: number;
   mediaTypeName: string;
   statusType: number;
@@ -43,6 +45,8 @@ export const MEDIA_TYPES: Record<number, string> = {
   0x01: 'Laminated tape',
   0x03: 'Non-laminated tape',
   0x04: 'Fabric tape',
+  0x0a: 'Continuous DK roll',
+  0x0b: 'Die-cut DK labels',
   0x11: 'Heat-shrink tube (2:1)',
   0x13: 'Flexible ID tape',
   0x14: 'Flexible ID tape',
@@ -96,6 +100,7 @@ export function parseStatus(b: Uint8Array): PrinterStatus | null {
     battery: b[6],
     errors,
     mediaWidth: b[10],
+    mediaLength: b[17],
     mediaType: b[11],
     mediaTypeName: name(MEDIA_TYPES, b[11]),
     statusType: b[18],

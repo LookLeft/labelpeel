@@ -183,12 +183,15 @@ export type LabelElement =
   | GridElement
   | TableElement;
 
-export type MediaKind = 'tze' | 'hse' | 'fle' | 'fabric';
+/** P-touch tape and media, or DK rolls for QL printers: continuous ('dk') or die-cut labels ('dkdie'). */
+export type MediaKind = 'tze' | 'hse' | 'fle' | 'fabric' | 'dk' | 'dkdie';
 
 export interface Media {
   kind: MediaKind;
   /** Nominal width in mm, e.g. 24, 12, 3.5, or 23.6 for HSe. */
   width: number;
+  /** Die-cut DK labels: the label's length along the roll, in mm. */
+  length?: number;
   tapeColor: string;
   inkColor: string;
   /**
