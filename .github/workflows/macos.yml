@@ -150,7 +150,15 @@ jobs:
           rm sparkle.key
       - name: No update key
         if: inputs.release && env.SPARKLE_PRIVATE_KEY == ''
-        run: echo "::warning::SPARKLE_PRIVATE_KEY is not set, so this release has no appcast.xml and installed copies won't be offered it as an update."
+        run: |
+          # Installed copies read appcast.xml from the latest release, so a signed
+          # release without one makes every copy's update check fail.
+          MSG="SPARKLE_PRIVATE_KEY is not set, so this release has no appcast.xml"
+          if [ "$SIGNED" = 1 ]; then
+            echo "::error::$MSG, and installed copies would show an error when checking for updates. Add the secret (see macos/README.md) and run the release again."
+            exit 1
+          fi
+          echo "::warning::$MSG. Installed copies won't be offered it as an update."
 
       - uses: actions/upload-artifact@v4
         with:
