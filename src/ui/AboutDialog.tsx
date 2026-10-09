@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { useEditor } from '../state/store';
+import { supportsNative } from '../printer/native';
+import { ANDROID_DOWNLOAD, MAC_DOWNLOAD, RELEASES_URL, REPO_URL } from './apps';
 
 export const TRADEMARK_NOTICE =
   'Labelpeel is an independent project and is not affiliated with, endorsed by or sponsored by Brother Industries, Ltd. ' +
@@ -34,6 +36,13 @@ export function AboutDialog() {
         </div>
         <div className="modal-body">
           <p style={{ marginTop: 0 }}>Design and print labels on Brother P-touch compatible label printers over Bluetooth or USB.</p>
+          {!supportsNative() && (
+            <p>
+              Apps: <a href={MAC_DOWNLOAD}>Mac</a> · <a href={ANDROID_DOWNLOAD}>Android</a> ·{' '}
+              <a href={RELEASES_URL} target="_blank" rel="noopener">all releases</a> ·{' '}
+              <a href={REPO_URL} target="_blank" rel="noopener">source code</a>
+            </p>
+          )}
           <div className="callout">{TRADEMARK_NOTICE}</div>
           <p className="hint">
             Printer protocol details are based on Brother's published raster command reference. Brother's .lbx format is imported on a

@@ -56,11 +56,11 @@ jobs:
           VERSION: ${{ needs.version.outputs.name }}
         run: |
           # appcast.xml (Mac auto-update feed) is only there when the update key is set.
-          FILES=(labelpeel-*.apk Labelpeel-*.dmg)
+          FILES=(Labelpeel.apk Labelpeel.dmg)
           [ -f appcast.xml ] && FILES+=(appcast.xml)
           gh release create "v$VERSION" "${FILES[@]}" \
             --title "Labelpeel $VERSION" \
             --target "${{ github.sha }}" \
             --generate-notes \
-            --notes "**Mac:** download Labelpeel-$VERSION.dmg, open it and drag Labelpeel to Applications.
-          **Android:** download labelpeel-$VERSION.apk on your phone and open it to install (allow installing from your browser or Files app when asked)."
+            --notes "**Mac:** download Labelpeel.dmg, open it and drag Labelpeel to Applications.
+          **Android:** download Labelpeel.apk on your phone and open it to install (allow installing from your browser or Files app when asked)."

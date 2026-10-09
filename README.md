@@ -1,12 +1,27 @@
+<p align="center"><img src="public/icon-192.png" width="96" alt=""></p>
+
 # Labelpeel
 
-A label designer for Brother P-touch printers that runs in the browser and prints directly over Bluetooth or USB, with small native apps for Mac, Android and iPhone/iPad. It was built first for the **PT-E560BT** and has profiles for the rest of the PT range.
+A label designer for Brother P-touch printers that prints directly over Bluetooth or USB, in the browser or as an app for Mac and Android. It was built first for the **PT-E560BT** and has profiles for the rest of the PT range.
+
+![The Labelpeel editor with a yellow "Warning – dual supply" label on 24 mm tape, templates on the left and tape settings on the right](screenshots/label-demo.png)
+
+## Get Labelpeel
+
+| | | |
+| --- | --- | --- |
+| **Web** | [Open Labelpeel](https://lookleft.github.io/labelpeel/) | Nothing to install. Prints from Chrome or Edge on Windows, Linux and ChromeOS, over Bluetooth or USB. Works offline once loaded, and can be installed as an app from the address bar. |
+| **Mac** | [Download Labelpeel.dmg](https://github.com/LookLeft/labelpeel/releases/latest/download/Labelpeel.dmg) | Recommended on a Mac. Connects to the paired printer directly over Bluetooth or USB, shows labels at real size and updates itself. macOS 13 or later. |
+| **Android** | [Download Labelpeel.apk](https://github.com/LookLeft/labelpeel/releases/latest/download/Labelpeel.apk) | Prints over Bluetooth and USB; Chrome on Android can only use USB. Open the file on your phone to install it. |
+| **iPhone and iPad** | [Build it yourself](ios/README.md) | Browsers on iOS can't reach printers. The app isn't on the App Store, but you can install it on your own devices from Xcode. |
+
+All versions and release notes are on the [releases page](https://github.com/LookLeft/labelpeel/releases/latest). Your labels are saved on your device: see [where your labels are stored](#where-your-labels-are-stored).
 
 > Labelpeel is an independent project. It is not affiliated with, endorsed by or sponsored by Brother Industries, Ltd. Brother, P-touch, TZe, HSe and FLe are trademarks of Brother Industries, Ltd.; they and printer model names are used here only to describe compatibility.
 
-It is a static site, so it deploys to GitHub Pages and works offline as an installable app.
-
 ## Features
+
+![The "What are you labelling?" picker with label types such as cable wrap, patch panel and distribution board](screenshots/label-picker.png)
 
 - **Start from what you're labelling.** Choose a label type and the layout is generated from a few settings:
   - general text, self-laminating, cable wrap, cable flag, heat-shrink
@@ -103,14 +118,15 @@ Browsers on a Mac can only reach a Bluetooth printer through the serial port
 macOS keeps for every paired device, which opens even when the printer is off.
 `macos/` has a small native app that wraps this one and connects to the paired
 printer directly over Bluetooth or USB. Each release includes a signed,
-notarized `.dmg`, and the app updates itself from new GitHub releases. See
-[macos/README.md](macos/README.md).
+notarized `.dmg` ([download the latest](https://github.com/LookLeft/labelpeel/releases/latest/download/Labelpeel.dmg)), and the
+app updates itself from new GitHub releases. See [macos/README.md](macos/README.md).
 
 ## Android
 
 Chrome on Android can use the web app over USB. `android/` has a small native
 app that wraps this one and prints over Bluetooth or USB. Each release includes
-an installable APK. See [android/README.md](android/README.md).
+an installable APK ([download the latest](https://github.com/LookLeft/labelpeel/releases/latest/download/Labelpeel.apk)). See
+[android/README.md](android/README.md).
 
 ## iPhone and iPad
 
@@ -142,9 +158,9 @@ Main folders:
 
 ## Deploying and releases
 
-- **Website:** `.github/workflows/deploy.yml` builds and tests every push and pull request, and deploys pushes to `main` to GitHub Pages. To turn this on once, go to **Settings → Pages → Build and deployment → Source** and choose **GitHub Actions**.
+- **Website:** a static site. `.github/workflows/deploy.yml` builds and tests every push and pull request, and deploys pushes to `main` to GitHub Pages. To turn this on once, go to **Settings → Pages → Build and deployment → Source** and choose **GitHub Actions**.
 - **Native apps:** `android.yml` and `macos.yml` build the Android and Mac apps on every push and pull request; the APK is attached to each run.
-- **Releases:** run **Actions → Release → Run workflow** with a version such as `0.1.0`, or push a tag like `v0.1.0`. It builds the signed Android APK and the signed, notarized Mac `.dmg`, and publishes a GitHub release with both attached. Signing needs repository secrets, set up once as described in [android/README.md](android/README.md#releases-and-signing) and [macos/README.md](macos/README.md#releases-signing-and-notarization). Each release also carries `appcast.xml`, the Mac app's update feed.
+- **Releases:** run **Actions → Release → Run workflow** with a version such as `0.1.0`, or push a tag like `v0.1.0`. It builds the signed Android APK and the signed, notarized Mac `.dmg`, and publishes a GitHub release with both attached. Signing needs repository secrets, set up once as described in [android/README.md](android/README.md#releases-and-signing) and [macos/README.md](macos/README.md#releases-signing-and-notarization). Each release also carries `appcast.xml`, the Mac app's update feed. The files have fixed names (`Labelpeel.dmg`, `Labelpeel.apk`), so the download links above always get the newest release.
 
 ## Credits
 

@@ -7,8 +7,8 @@ approval from Brother.
 
 ## Installing
 
-Download `labelpeel-<version>.apk` from the
-[latest release](../../../releases/latest) on your phone and open it. Android
+[Download Labelpeel.apk](https://github.com/LookLeft/labelpeel/releases/latest/download/Labelpeel.apk)
+from the latest release on your phone and open it. Android
 asks you to allow installing apps from your browser or Files app the first time.
 
 Builds of every push are also attached to the **Android** workflow runs in the

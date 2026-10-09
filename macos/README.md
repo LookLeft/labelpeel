@@ -11,8 +11,9 @@ and adds a printer bridge:
 
 ## Installing
 
-Download `Labelpeel-<version>.dmg` from the [latest release](../../../releases/latest),
-open it and drag Labelpeel to Applications.
+[Download Labelpeel.dmg](https://github.com/LookLeft/labelpeel/releases/latest/download/Labelpeel.dmg)
+from the latest release, open it and drag Labelpeel to Applications. It updates
+itself after that.
 
 ## Printing
 

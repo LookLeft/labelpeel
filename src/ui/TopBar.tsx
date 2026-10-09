@@ -9,6 +9,8 @@ import { closeTab, downloadPrintFile, exportLbxFile, exportPng, importLbxFile, o
 import { loadFontFile, loadLocalFonts } from '../render/fonts';
 import { pickFile } from '../io/files';
 import { exportBackup, restoreBackup } from '../io/backup';
+import { supportsNative } from '../printer/native';
+import { RELEASES_URL } from './apps';
 
 function Menu({ label, children }: { label: React.ReactNode; children: (close: () => void) => React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -108,6 +110,7 @@ export function TopBar() {
             <Item icon={<Moon size={15} />} label={`${theme === 'dark' ? '✓ ' : ''}Theme: dark`} onClick={() => { close(); st().setSettings({ theme: 'dark' }); }} />
             <Item icon={<Sun size={15} />} label={`${theme === 'light' ? '✓ ' : ''}Theme: light`} onClick={() => { close(); st().setSettings({ theme: 'light' }); }} />
             <div className="menu-sep" />
+            {!supportsNative() && <Item icon={<Download size={15} />} label="Get the Mac and Android apps" onClick={() => { close(); window.open(RELEASES_URL, '_blank', 'noopener'); }} />}
             <Item icon={<Info size={15} />} label="About Labelpeel" onClick={() => { close(); st().set({ aboutOpen: true }); }} />
           </>
         )}

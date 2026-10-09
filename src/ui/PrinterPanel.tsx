@@ -1,4 +1,4 @@
-import { X, Usb, Bluetooth, Cable, RefreshCw, Scissors, Unplug } from 'lucide-react';
+import { X, Usb, Bluetooth, Cable, RefreshCw, Scissors, Unplug, Download } from 'lucide-react';
 import { useEditor } from '../state/store';
 import { connect, disconnect, feedAndCut, refreshStatus, usePrinter, effectiveProfile } from '../printer/service';
 import { PROFILES } from '../printer/profiles';
@@ -7,6 +7,7 @@ import { nativePlatform, nativeSupportsUsb, supportsNative } from '../printer/na
 import { Check, Field, Select } from './fields';
 import { findTape } from '../model/media';
 import { matchLoadedTape } from './actions';
+import { ANDROID_DOWNLOAD, appForThisDevice, MAC_DOWNLOAD } from './apps';
 
 export function PrinterPanel() {
   const open = useEditor((s) => s.printerOpen);
@@ -93,6 +94,7 @@ export function PrinterPanel() {
                       <Cable size={15} /> Serial / Bluetooth COM port
                     </button>
                   </div>
+                  <AppSuggestion />
                   {!supportsSerial() && !supportsUsb() && (
                     <div className="callout err" style={{ marginTop: 12 }}>
                       This browser cannot talk to printers. Use Chrome or Edge on Windows, macOS, Linux or ChromeOS (or Chrome on Android for USB). You can still design labels and download print files.
@@ -187,6 +189,32 @@ export function PrinterPanel() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** On a Mac or Android phone, the app connects more reliably than the browser can. */
+function AppSuggestion() {
+  const app = appForThisDevice();
+  if (!app) return null;
+  const { text, href, label } = {
+    macos: {
+      text: 'The Mac app connects to your paired printer directly over Bluetooth or USB, with no port to pick, and shows labels at their real size.',
+      href: MAC_DOWNLOAD,
+      label: 'Download for Mac',
+    },
+    android: {
+      text: 'Chrome on Android can only reach printers over USB. The Android app connects over Bluetooth too.',
+      href: ANDROID_DOWNLOAD,
+      label: 'Download for Android',
+    },
+  }[app];
+  return (
+    <div className="callout" style={{ marginTop: 12, flexDirection: 'column', alignItems: 'flex-start' }}>
+      <div>{text}</div>
+      <a className="btn sm" href={href}>
+        <Download size={14} /> {label}
+      </a>
     </div>
   );
 }

@@ -106,7 +106,8 @@ jobs:
 
       - name: Package
         run: |
-          DMG="Labelpeel-${{ steps.version.outputs.name }}.dmg"
+          # A fixed name, so .../releases/latest/download/Labelpeel.dmg always works.
+          DMG=Labelpeel.dmg
           mkdir -p "$RUNNER_TEMP/dmg"
           cp -R "$RUNNER_TEMP/dd/Build/Products/Release/Labelpeel.app" "$RUNNER_TEMP/dmg/"
           ln -s /Applications "$RUNNER_TEMP/dmg/Applications"
@@ -156,6 +157,6 @@ jobs:
         with:
           name: labelpeel-macos
           path: |
-            Labelpeel-*.dmg
+            Labelpeel.dmg
             appcast.xml
           if-no-files-found: error
