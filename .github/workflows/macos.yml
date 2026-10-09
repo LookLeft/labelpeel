@@ -108,10 +108,9 @@ jobs:
         run: |
           # A fixed name, so .../releases/latest/download/Labelpeel.dmg always works.
           DMG=Labelpeel.dmg
-          mkdir -p "$RUNNER_TEMP/dmg"
-          cp -R "$RUNNER_TEMP/dd/Build/Products/Release/Labelpeel.app" "$RUNNER_TEMP/dmg/"
-          ln -s /Applications "$RUNNER_TEMP/dmg/Applications"
-          hdiutil create -volname Labelpeel -srcfolder "$RUNNER_TEMP/dmg" -ov -format UDZO "$DMG"
+          # create-dmg makes the usual window (the app, an arrow, Applications) and
+          # a disk icon from the app icon. The dmg is signed below, so skip its signing.
+          npx --yes create-dmg@8.1.0 --no-version-in-filename --no-code-sign "$RUNNER_TEMP/dd/Build/Products/Release/Labelpeel.app" .
           if [ "$SIGNED" = 1 ]; then codesign --sign "Developer ID Application" --timestamp "$DMG"; fi
           echo "DMG=$DMG" >> "$GITHUB_ENV"
 
